@@ -1,0 +1,495 @@
+{
+  "info": {
+    "name": "UniTrace API",
+    "description": "Every route of the UniTrace backend. Run \"Auth / 4. Login\" first: it stores the access token in the collection variable accessToken, and every other request sends it. The refresh cookie is kept by the Postman cookie jar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "email",
+      "value": "sara.k@isamm.uma.tn"
+    },
+    {
+      "key": "password",
+      "value": "Passw0rdDemo"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "declarationId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "1. Register",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"new.student\",\n  \"email\": \"new.student@isamm.uma.tn\",\n  \"phone\": \"+21655000009\",\n  \"password\": \"Passw0rdDemo\",\n  \"confirmPassword\": \"Passw0rdDemo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2. Verify email",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/verify-email",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.student@isamm.uma.tn\",\n  \"code\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Without AgentMail, the code is printed in the server console."
+          }
+        },
+        {
+          "name": "3. Resend verification",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/resend-verification",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.student@isamm.uma.tn\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "4. Login",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Refresh",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "No body. Uses the refreshToken cookie set by login."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "No body. Uses the refreshToken cookie."
+          }
+        },
+        {
+          "name": "7. Forgot password",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/forgot-password",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "8. Reset password",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/reset-password",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"123456\",\n  \"newPassword\": \"NewPassw0rd1\",\n  \"confirmPassword\": \"NewPassw0rd1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/users/me"
+          }
+        },
+        {
+          "name": "Update my profile",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+21655000010\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Send at least one of username, email, phone. phone: null clears it."
+          }
+        },
+        {
+          "name": "Change my password",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/users/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewPassw0rd1\",\n  \"confirmPassword\": \"NewPassw0rd1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete my account",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Declarations",
+      "item": [
+        {
+          "name": "Create declaration (JSON)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/declarations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Black Nike backpack\",\n  \"type\": \"lost\",\n  \"description\": \"Black Nike backpack with a red keychain, lost Monday afternoon.\",\n  \"date\": \"2026-10-20\",\n  \"location\": \"Main library, 2nd floor\",\n  \"category\": \"wallet_bag\",\n  \"attributes\": {\n    \"brand\": \"Nike\",\n    \"color\": \"black\"\n  },\n  \"privateInfo\": \"Physics notebook inside with my name on page 1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('declarationId', pm.response.json().declaration.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create declaration (with picture)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/declarations",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Black Nike backpack",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "lost",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Black Nike backpack with a red keychain, lost Monday afternoon.",
+                  "type": "text"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-10-20",
+                  "type": "text"
+                },
+                {
+                  "key": "location",
+                  "value": "Main library, 2nd floor",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "wallet_bag",
+                  "type": "text"
+                },
+                {
+                  "key": "attributes",
+                  "value": "{\"brand\":\"Nike\",\"color\":\"black\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "privateInfo",
+                  "value": "Physics notebook inside with my name on page 1",
+                  "type": "text"
+                },
+                {
+                  "key": "picture",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Pick a jpeg, png or webp file (max 5 MB) in the picture field. attributes is a JSON string."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('declarationId', pm.response.json().declaration.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my declarations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/declarations/mine?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "declarations", "mine"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "type",
+                  "value": "lost",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get declaration",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}"
+          }
+        },
+        {
+          "name": "Update declaration",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Black Nike backpack, red keychain\",\n  \"location\": \"Library, 1st floor\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Send at least one of title, description, date, location, category, attributes."
+          }
+        },
+        {
+          "name": "Change status",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"resolved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete declaration",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}"
+          }
+        },
+        {
+          "name": "Get picture",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/picture"
+          }
+        },
+        {
+          "name": "Set or replace picture",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/picture",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "picture",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove picture",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/picture"
+          }
+        }
+      ]
+    }
+  ]
+}
