@@ -1,3 +1,7 @@
+// `sensitive` hides the picture from other users (the owner and admins still see it), in both
+// the public presenter and the picture route.
+// `highValue` is not read by any code yet: it is kept for the handover rules planned for
+// expensive items.
 export const CATEGORIES = Object.freeze({
   phone: { label: 'Phone', highValue: true },
   laptop_tablet: { label: 'Laptop or tablet', highValue: true },

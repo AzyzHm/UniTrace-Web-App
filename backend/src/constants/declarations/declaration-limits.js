@@ -1,3 +1,5 @@
+// Used by both the Mongoose schema and the Joi validators, so the two cannot disagree about
+// what a valid declaration is.
 export const DECLARATION_LIMITS = Object.freeze({
   TITLE_MIN: 3,
   TITLE_MAX: 100,
