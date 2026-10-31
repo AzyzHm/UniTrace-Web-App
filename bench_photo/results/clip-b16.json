@@ -1,0 +1,13 @@
+{
+  "key": "clip-b16",
+  "model": "Xenova/clip-vit-base-patch16",
+  "n": 4,
+  "top1": 100,
+  "top3": 100,
+  "mrr": 1,
+  "separation": 0.193,
+  "hardNegPct": 100,
+  "loadMs": 18447,
+  "msPerImage": 212.3,
+  "ramMB": 290
+}

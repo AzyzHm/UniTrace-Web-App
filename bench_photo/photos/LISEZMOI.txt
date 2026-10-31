@@ -1,0 +1,10 @@
+Photos deja rangees. Il MANQUE ces 4 fichiers pour que les objets soient complets :
+
+  01_sosie.png   une AUTRE veste grise (objet similaire mais different)
+  02_b.png       la MEME pochette noire Trusador (02_a), autre angle
+  03_b.png       le MEME portefeuille bordeaux Belford (03_a), autre angle
+  04_b.png       les MEMES ecouteurs que 04_a, autre angle
+
+Formats acceptes : jpg, jpeg, png, webp. Un objet sans ses 3 photos est ignore,
+et le script exige au moins 3 objets complets.
+Attention : 01_a montre le visage d'une personne -> preferer une photo de la veste seule.

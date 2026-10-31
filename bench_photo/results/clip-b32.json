@@ -1,0 +1,13 @@
+{
+  "key": "clip-b32",
+  "model": "Xenova/clip-vit-base-patch32",
+  "n": 4,
+  "top1": 100,
+  "top3": 100,
+  "mrr": 1,
+  "separation": 0.167,
+  "hardNegPct": 100,
+  "loadMs": 26013,
+  "msPerImage": 92.9,
+  "ramMB": 278
+}

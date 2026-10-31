@@ -1,0 +1,13 @@
+{
+  "key": "siglip",
+  "model": "Xenova/siglip-base-patch16-224",
+  "n": 4,
+  "top1": 100,
+  "top3": 100,
+  "mrr": 1,
+  "separation": 0.225,
+  "hardNegPct": 100,
+  "loadMs": 17304,
+  "msPerImage": 198.5,
+  "ramMB": 310
+}
