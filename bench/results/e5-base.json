@@ -1,0 +1,19 @@
+{
+  "key": "e5-base",
+  "model": "Xenova/multilingual-e5-base",
+  "n": 24,
+  "top1": 54.2,
+  "top3": 91.7,
+  "mrr": 0.734,
+  "separation": 0.034,
+  "loadMs": 81449,
+  "msPerText": 16.7,
+  "ramMB": 1831,
+  "byGroup": {
+    "en": 33,
+    "fr": 83,
+    "ar": 83,
+    "cross": 17
+  },
+  "hardNegPct": 96
+}

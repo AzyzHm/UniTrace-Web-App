@@ -1,0 +1,19 @@
+{
+  "key": "labse",
+  "model": "Xenova/LaBSE",
+  "n": 24,
+  "top1": 62.5,
+  "top3": 87.5,
+  "mrr": 0.764,
+  "separation": 0.073,
+  "loadMs": 140801,
+  "msPerText": 18.4,
+  "ramMB": 581,
+  "byGroup": {
+    "en": 67,
+    "fr": 67,
+    "ar": 83,
+    "cross": 33
+  },
+  "hardNegPct": 100
+}

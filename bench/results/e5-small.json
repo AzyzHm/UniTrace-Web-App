@@ -1,0 +1,19 @@
+{
+  "key": "e5-small",
+  "model": "Xenova/multilingual-e5-small",
+  "n": 24,
+  "top1": 58.3,
+  "top3": 91.7,
+  "mrr": 0.748,
+  "separation": 0.041,
+  "loadMs": 41394,
+  "msPerText": 8.2,
+  "ramMB": 729,
+  "byGroup": {
+    "en": 83,
+    "fr": 83,
+    "ar": 67,
+    "cross": 0
+  },
+  "hardNegPct": 100
+}
