@@ -2,7 +2,11 @@
 // importing our services, so renaming one breaks every listener.
 export const EVENTS = Object.freeze({
   USER_DELETED: 'user.deleted',
+  USER_SUSPENDED: 'user.suspended',
+  USER_REACTIVATED: 'user.reactivated',
   DECLARATION_CREATED: 'declaration.created',
   DECLARATION_UPDATED: 'declaration.updated',
   DECLARATION_STATUS_CHANGED: 'declaration.statusChanged',
+  REPORT_CREATED: 'report.created',
+  REPORT_TREATED: 'report.treated',
 });
