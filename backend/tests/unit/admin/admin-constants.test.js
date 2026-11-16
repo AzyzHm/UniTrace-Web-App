@@ -33,12 +33,10 @@ describe('admin constants', () => {
 
   it('gives every audit action a unique name', () => {
     expect(new Set(AUDIT_ACTION_VALUES).size).toBe(AUDIT_ACTION_VALUES.length);
-    expect(AUDIT_ACTIONS.USER_SUSPENDED).toBe('user.suspended');
+    expect(AUDIT_ACTIONS.USER_DELETED).toBe('user.deleted');
   });
 
   it('registers the admin events', () => {
-    expect(EVENTS.USER_SUSPENDED).toBe('user.suspended');
-    expect(EVENTS.USER_REACTIVATED).toBe('user.reactivated');
     expect(EVENTS.REPORT_CREATED).toBe('report.created');
     expect(EVENTS.REPORT_TREATED).toBe('report.treated');
   });

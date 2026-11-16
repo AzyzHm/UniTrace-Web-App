@@ -41,8 +41,6 @@ describe('constants', () => {
   it('names the events of the contract with the other binomes', () => {
     expect(EVENTS).toEqual({
       USER_DELETED: 'user.deleted',
-      USER_SUSPENDED: 'user.suspended',
-      USER_REACTIVATED: 'user.reactivated',
       DECLARATION_CREATED: 'declaration.created',
       DECLARATION_UPDATED: 'declaration.updated',
       DECLARATION_STATUS_CHANGED: 'declaration.statusChanged',
