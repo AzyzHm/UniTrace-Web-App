@@ -15,6 +15,12 @@
     ]
   },
   "variable": [
+    { "key": "emailB", "value": "omar.b@isamm.uma.tn" },
+{ "key": "passwordB", "value": "Passw0rdDemo" },
+{ "key": "accessTokenB", "value": "" },
+{ "key": "foundDeclarationId", "value": "" },
+{ "key": "correspondenceId", "value": "" },
+{ "key": "notificationId", "value": "" },
     {
       "key": "baseUrl",
       "value": "http://localhost:3000"
@@ -55,6 +61,157 @@
     {
       "name": "Auth",
       "item": [
+        {
+  "name": "Matching scenario (A = lost, B = found)",
+  "description": "Run in order. A creates the lost declaration with Declarations / Create declaration (JSON), which sets declarationId. Matching runs in the background and the text model takes a few seconds, so wait about 10 s before step 4 or call Rematch.",
+  "item": [
+    {
+      "name": "1. Login B",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": { "type": "noauth" },
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{passwordB}}\"\n}", "options": { "raw": { "language": "json" } } }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('status is 200', () => pm.response.to.have.status(200));",
+        "pm.collectionVariables.set('accessTokenB', pm.response.json().accessToken);"
+      ] } }]
+    },
+    {
+      "name": "2. B creates the found declaration",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/declarations",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessTokenB}}", "type": "string" }] },
+        "body": { "mode": "raw", "raw": "{\n  \"title\": \"Black backpack with Nike logo\",\n  \"type\": \"found\",\n  \"description\": \"Black backpack with a Nike logo found near the library on Tuesday.\",\n  \"date\": \"2026-10-21\",\n  \"location\": \"Near the library\",\n  \"category\": \"wallet_bag\"\n}", "options": { "raw": { "language": "json" } } }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('status is 201', () => pm.response.to.have.status(201));",
+        "pm.collectionVariables.set('foundDeclarationId', pm.response.json().declaration.id);"
+      ] } }]
+    },
+    {
+      "name": "3. (optional) A rematch",
+      "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/correspondences/declaration/{{declarationId}}/rematch" },
+      "description": "Recomputes matches now instead of waiting for the background job."
+    },
+    {
+      "name": "4. A lists matches of the lost declaration",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/correspondences/declaration/{{declarationId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('status is 200', () => pm.response.to.have.status(200));",
+        "const items = pm.response.json().items;",
+        "pm.test('a match exists (sorted by globalScore desc)', () => pm.expect(items.length).to.be.above(0));",
+        "pm.collectionVariables.set('correspondenceId', items[0].id);"
+      ] } }]
+    },
+    {
+      "name": "5. A accepts",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/accept",
+        "body": { "mode": "raw", "raw": "{\n  \"comment\": \"Looks like my bag\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "6. B accepts",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/accept",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessTokenB}}", "type": "string" }] },
+        "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('both accepted', () => pm.expect(pm.response.json().status).to.eql('accepted'));"
+      ] } }]
+    },
+    {
+      "name": "7. A confirms recovery",
+      "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/recover" },
+      "description": "Marks A's own declaration resolved. The match stays accepted until B confirms too."
+    },
+    {
+      "name": "8. B confirms recovery",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/recover",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessTokenB}}", "type": "string" }] }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('match resolved', () => pm.expect(pm.response.json().status).to.eql('resolved'));"
+      ] } }]
+    },
+    {
+      "name": "9. Get match with full history",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}" }
+    }
+  ]
+},
+{
+  "name": "Correspondences",
+  "item": [
+    {
+      "name": "List my correspondences",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/correspondences/me?page=1&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "correspondences", "me"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" },
+            { "key": "status", "value": "proposed", "disabled": true }
+          ]
+        }
+      }
+    },
+    { "name": "List matches of a declaration", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/correspondences/declaration/{{declarationId}}" }, "description": "Owner or admin only. Sorted by scoreGlobal, best first." },
+    { "name": "Rematch a declaration", "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/correspondences/declaration/{{declarationId}}/rematch" } },
+    { "name": "Get correspondence (with history)", "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}" } },
+    {
+      "name": "Accept",
+      "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/accept", "body": { "mode": "raw", "raw": "{\n  \"comment\": \"optional, 500 characters max\"\n}", "options": { "raw": { "language": "json" } } } }
+    },
+    {
+      "name": "Refuse",
+      "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/refuse", "body": { "mode": "raw", "raw": "{\n  \"comment\": \"The keychain is different\"\n}", "options": { "raw": { "language": "json" } } } }
+    },
+    {
+      "name": "Ask for verification",
+      "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/verify", "body": { "mode": "raw", "raw": "{\n  \"comment\": \"Can you describe what is inside?\"\n}", "options": { "raw": { "language": "json" } } } }
+    },
+    { "name": "Confirm recovery (my side)", "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/recover" }, "description": "Each owner confirms for their own declaration. The match becomes resolved when both did." }
+  ]
+},
+{
+  "name": "Notifications",
+  "item": [
+    {
+      "name": "List my notifications",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "20" },
+            { "key": "unreadOnly", "value": "true", "disabled": true }
+          ]
+        }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "const items = pm.response.json().items;",
+        "if (items && items.length) pm.collectionVariables.set('notificationId', items[0].id);"
+      ] } }]
+    },
+    { "name": "Mark one as read", "request": { "method": "PATCH", "url": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read" } },
+    { "name": "Mark all as read", "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/notifications/read-all" } }
+  ]
+},
         {
           "name": "1. Register",
           "request": {
