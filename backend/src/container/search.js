@@ -1,0 +1,38 @@
+/**
+ * FICHIER : container/search.js
+ *
+ * RÔLE
+ *   "Assembleur" du module recherche. Au démarrage de l'application, il fabrique le repository
+ *   et le service de recherche et les branche entre eux (injection de dépendances). Aucun autre
+ *   fichier ne crée ses propres dépendances : tout passe par le container.
+ *
+ *   Avantage : dans un test on peut remplacer n'importe quelle pièce par un faux
+ *   (ex. createContainer({ overrides: { searchRepository: fauxRepo } })).
+ *
+ * UTILISÉ PAR
+ *   - container/index.js (appelle buildSearch après common, auth, users et declarations)
+ *
+ * UTILISE
+ *   - repositories/search/search.repository.js (createSearchRepository)
+ *   - services/search/search.service.js (createSearchService)
+ *   - `common` (créé dans container/common.js) : eventBus et clock
+ */
+import { createSearchRepository } from '../repositories/search/search.repository.js';
+import { createSearchService } from '../services/search/search.service.js';
+
+// `common` = pièces partagées par tous les domaines ; `use` = fabrique avec possibilité de remplacement en test.
+export function buildSearch({ common, use }) {
+  // eventBus : le service s'y abonne pour vider son cache. clock : horloge (contrôlable en test).
+  const { eventBus, clock } = common;
+
+  // use('nom', fabrique) crée la pièce, sauf si un test a fourni un remplaçant sous ce nom.
+  const searchRepository = use('searchRepository', createSearchRepository);
+
+  const services = {
+    // Le service reçoit tout ce dont il a besoin ; il n'importe rien d'autre.
+    searchService: createSearchService({ searchRepository, eventBus, clock }),
+  };
+
+  // `services` est fusionné avec ceux des autres domaines dans container/index.js.
+  return { services, searchRepository };
+}

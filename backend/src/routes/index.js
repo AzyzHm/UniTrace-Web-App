@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createAuthController } from '../controllers/auth/auth.controller.js';
 import { createDeclarationController } from '../controllers/declarations/declaration.controller.js';
+import { createSearchController } from '../controllers/search/search.controller.js';
 import { createUserController } from '../controllers/users/user.controller.js';
 import {
   createUploadPicture,
@@ -24,6 +25,7 @@ import {
   pictureBodySchema,
   updateDeclarationSchema,
 } from '../validators/declarations/declaration.validator.js';
+import { searchQuerySchema } from '../validators/search/search.validator.js';
 import {
   changePasswordSchema,
   createUpdateProfileSchema,
@@ -31,6 +33,7 @@ import {
 } from '../validators/users/user.validator.js';
 import { createAuthRoutes } from './auth/auth.routes.js';
 import { createDeclarationRoutes } from './declarations/declaration.routes.js';
+import { createSearchRoutes } from './search/search.routes.js';
 import { createUserRoutes } from './users/user.routes.js';
 
 export function createApiRouter({
@@ -48,6 +51,7 @@ export function createApiRouter({
     passwordChangeService,
     accountDeletionService,
     declarationService,
+    searchService,
   } = services;
 
   const router = Router();
@@ -111,6 +115,21 @@ export function createApiRouter({
         uploadPicture: createUploadPicture(),
         requirePicture,
         parseMultipartAttributes,
+      }),
+    );
+  }
+
+  // [Binôme 2 - recherche] Monte /api/v1/search. Comme pour les autres groupes, il n'est monté
+  // que si ses dépendances existent. C'est ici que le controller, le schéma Joi et les limiteurs
+  // sont donnés à la fabrique des routes (routes/search/search.routes.js).
+  if (requireAuth && searchService) {
+    router.use(
+      '/search',
+      createSearchRoutes({
+        searchController: createSearchController({ searchService }),
+        requireAuth,
+        searchQuerySchema,
+        rateLimiters,
       }),
     );
   }

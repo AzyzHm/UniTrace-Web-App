@@ -35,7 +35,11 @@ export function createDeclarationRoutes({
     declarationController.listMine,
   );
 
-  router.get('/:id', validate(declarationIdParamsSchema, 'params'), declarationController.getById);
+  router.get(
+    '/:id',
+    validate(declarationIdParamsSchema,'params'), 
+    declarationController.getById,
+  );
 
   router.patch(
     '/:id',

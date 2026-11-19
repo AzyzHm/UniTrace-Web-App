@@ -12,4 +12,9 @@ export const RATE_LIMITS = Object.freeze({
   loginAccount: Object.freeze({ windowMs: 15 * MINUTE, limit: 5 }),
   // Every call sends an email, so this caps spam and the cost of the email provider.
   emailSending: Object.freeze({ windowMs: 60 * MINUTE, limit: 60 }),
+  // [Binôme 2 - recherche] Limites par UTILISATEUR (pas par IP), 1 minute glissante :
+  //  - search        : 50 recherches par minute
+  //  - searchFilters : 120 appels par minute (listes légères et mises en cache, donc plus large)
+  search: Object.freeze({ windowMs: MINUTE, limit: 50 }),
+  searchFilters: Object.freeze({ windowMs: MINUTE, limit: 120 }),
 });

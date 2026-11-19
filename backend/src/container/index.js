@@ -1,6 +1,7 @@
 import { buildAuth } from './auth.js';
 import { buildCommon } from './common.js';
 import { buildDeclarations } from './declarations.js';
+import { buildSearch } from './search.js';
 import { buildUsers } from './users.js';
 
 // Default logger so the container can be built in tests without one.
@@ -17,11 +18,13 @@ export function createContainer({ config, logger = silentLogger, clock, override
   const auth = buildAuth({ config, common, use });
   const users = buildUsers({ common, auth });
   const declarations = buildDeclarations({ config, common, use });
+  // [Binôme 2 - recherche] Assemble le repository et le service de recherche (container/search.js).
+  const search = buildSearch({ common, use });
 
   // Frozen, and limited to what the app and the tests need: the services, the auth middleware
   // and a few shared objects.
   return Object.freeze({
-    services: { ...auth.services, ...users.services, ...declarations.services },
+    services: { ...auth.services, ...users.services, ...declarations.services, ...search.services }, // + searchService
     requireAuth: auth.requireAuth,
 
     eventBus: common.eventBus,
@@ -29,6 +32,8 @@ export function createContainer({ config, logger = silentLogger, clock, override
     passwordHasher: auth.passwordHasher,
     tokenService: auth.tokenService,
     declarationRepository: declarations.declarationRepository,
+    // [Binôme 2 - recherche] exposé pour pouvoir le remplacer/inspecter en test
+    searchRepository: search.searchRepository,
     pictureStorage: declarations.pictureStorage,
   });
 }
