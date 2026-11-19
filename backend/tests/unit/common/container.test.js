@@ -1,8 +1,8 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
-import { createApp } from '../../../src/app.js';
-import { EVENTS } from '../../../src/constants/common/events.js';
-import { createContainer } from '../../../src/container/index.js';
+import { createApp } from '../../../../src/app.js';
+import { EVENTS } from '../../../../src/constants/common/events.js';
+import { createContainer } from '../../../../src/container/index.js';
 
 const config = {
   jwt: { accessSecret: 'j'.repeat(32), accessExpires: '15m' },
@@ -26,6 +26,7 @@ describe('createContainer', () => {
       'passwordChangeService',
       'passwordResetService',
       'profileService',
+      'searchService',
       'sessionService',
     ]);
     expect(typeof container.requireAuth).toBe('function');
@@ -37,6 +38,7 @@ describe('createContainer', () => {
 
     expect((await request(app).get('/api/v1/users/me')).status).toBe(401);
     expect((await request(app).get('/api/v1/declarations/mine')).status).toBe(401);
+    expect((await request(app).get('/api/v1/search/filters')).status).toBe(401);
     expect((await request(app).post('/api/v1/auth/login').send({})).status).toBe(400);
   });
 

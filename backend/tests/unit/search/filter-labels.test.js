@@ -12,17 +12,17 @@
  *   vitest (describe/it/expect).
  *
  * COMMENT LE LANCER
- *   npx vitest run tests/unit/search/filter-labels.test.js
+ *   npx vitest run tests/tests.search/unit/search/filter-labels.test.js
  */
 import { describe, expect, it } from 'vitest';
-import { CATEGORY_KEYS } from '../../../src/constants/declarations/categories.js';
-import { DECLARATION_STATUS_VALUES } from '../../../src/constants/declarations/declaration-status.js';
-import { DECLARATION_TYPE_VALUES } from '../../../src/constants/declarations/declaration-types.js';
+import { CATEGORY_KEYS } from '../../../../src/constants/declarations/categories.js';
+import { DECLARATION_STATUS_VALUES } from '../../../../src/constants/declarations/declaration-status.js';
+import { DECLARATION_TYPE_VALUES } from '../../../../src/constants/declarations/declaration-types.js';
 import {
   CATEGORY_LABELS,
   STATUS_LABELS,
   TYPE_LABELS,
-} from '../../../src/constants/search/filter-labels.js';
+} from '../../../../src/constants/search/filter-labels.js';
 
 // A new category or status without a French label would show "undefined" in the dropdown.
 describe('search filter labels', () => {

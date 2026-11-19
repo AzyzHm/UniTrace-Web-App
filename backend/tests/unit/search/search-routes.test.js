@@ -12,14 +12,14 @@
  *   vitest (describe/it/expect), supertest (requêtes HTTP).
  *
  * COMMENT LE LANCER
- *   npx vitest run tests/unit/search/search-routes.test.js
+ *   npx vitest run tests/tests.search/unit/search/search-routes.test.js
  */
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
-import { createApp } from '../../../src/app.js';
-import { createRateLimiters } from '../../../src/middlewares/common/rate-limiters.js';
-import { createSearchService } from '../../../src/services/search/search.service.js';
-import { UnauthenticatedError } from '../../../src/exceptions/app-error.js';
+import { createApp } from '../../../../src/app.js';
+import { createRateLimiters } from '../../../../src/middlewares/common/rate-limiters.js';
+import { createSearchService } from '../../../../src/services/search/search.service.js';
+import { UnauthenticatedError } from '../../../../src/exceptions/app-error.js';
 
 // The real routes, validator and service, with a fake repository and a fake requireAuth: no
 // database is needed, so this runs everywhere. The database part is in tests/integration/search.

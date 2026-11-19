@@ -12,13 +12,13 @@
  *   vitest (describe/it/expect).
  *
  * COMMENT LE LANCER
- *   npx vitest run tests/unit/search/search-filter-builder.test.js
+ *   npx vitest run tests/tests.search/unit/search/search-filter-builder.test.js
  */
 import { describe, expect, it } from 'vitest';
 import {
   buildAccentInsensitiveRegex,
   buildSearchFilter,
-} from '../../../src/services/search/search-filter-builder.js';
+} from '../../../../src/services/search/search-filter-builder.js';
 
 const ACTIVE = ['pending', 'matched'];
 

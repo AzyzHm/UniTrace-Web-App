@@ -12,10 +12,10 @@
  *   vitest (describe/it/expect).
  *
  * COMMENT LE LANCER
- *   npx vitest run tests/unit/search/search-validator.test.js
+ *   npx vitest run tests/tests.search/unit/search/search-validator.test.js
  */
 import { describe, expect, it } from 'vitest';
-import { searchQuerySchema } from '../../../src/validators/search/search.validator.js';
+import { searchQuerySchema } from '../../../../src/validators/search/search.validator.js';
 
 const OPTIONS = { abortEarly: false, allowUnknown: false, convert: true };
 const run = (query) => searchQuerySchema.validate(query, OPTIONS);
