@@ -10,13 +10,13 @@ Errors use the shared format:
 
 ## Who can do what
 
-| Action | Regular user | Admin |
-|---|---|---|
-| Flag a declaration (`POST /reports`) | yes, not their own, once per declaration | yes |
-| See and treat reports | no | yes |
-| Hide, restore, delete a declaration | no (the owner can still delete their own) | yes |
-| List users, delete a user | no | yes |
-| Statistics | no | yes |
+| Action                               | Regular user                              | Admin |
+| ------------------------------------ | ----------------------------------------- | ----- |
+| Flag a declaration (`POST /reports`) | yes, not their own, once per declaration  | yes   |
+| See and treat reports                | no                                        | yes   |
+| Hide, restore, delete a declaration  | no (the owner can still delete their own) | yes   |
+| List users, delete a user            | no                                        | yes   |
+| Statistics                           | no                                        | yes   |
 
 Admins cannot delete their own account or another admin's account.
 
@@ -55,11 +55,11 @@ Admins cannot delete their own account or another admin's account.
 
 Each action needs a `reason` of at least 3 characters. The reason is stored in the audit log.
 
-| Route | Effect | Success |
-|---|---|---|
-| `POST /api/v1/admin/declarations/:id/hide` | hides it from everyone except the owner and admins | `200` |
-| `POST /api/v1/admin/declarations/:id/restore` | restores a hidden declaration to the status it had before | `200` |
-| `DELETE /api/v1/admin/declarations/:id` | deletes it and clears its private information | `204` |
+| Route                                         | Effect                                                    | Success |
+| --------------------------------------------- | --------------------------------------------------------- | ------- |
+| `POST /api/v1/admin/declarations/:id/hide`    | hides it from everyone except the owner and admins        | `200`   |
+| `POST /api/v1/admin/declarations/:id/restore` | restores a hidden declaration to the status it had before | `200`   |
+| `DELETE /api/v1/admin/declarations/:id`       | deletes it and clears its private information             | `204`   |
 
 Body for all three: `{ "reason": "Looks like a fake listing" }`
 
