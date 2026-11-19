@@ -18,7 +18,7 @@ export function createContainer({ config, logger = silentLogger, clock, override
   const auth = buildAuth({ config, common, use });
   const users = buildUsers({ common, auth });
   const declarations = buildDeclarations({ config, common, use });
-  const admin = buildAdmin({ common, auth, use });
+  const admin = buildAdmin({ common, auth, declarations, use });
 
   // Frozen, and limited to what the app and the tests need: the services, the auth middleware
   // and a few shared objects.

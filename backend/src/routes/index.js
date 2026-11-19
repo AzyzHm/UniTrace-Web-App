@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { createAuthController } from '../controllers/auth/auth.controller.js';
 import { createAdminUserController } from '../controllers/admin/admin-user.controller.js';
+import { createModerationController } from '../controllers/admin/moderation.controller.js';
+import { createReportController } from '../controllers/admin/report.controller.js';
+import { createAuthController } from '../controllers/auth/auth.controller.js';
 import { createDeclarationController } from '../controllers/declarations/declaration.controller.js';
 import { createUserController } from '../controllers/users/user.controller.js';
 import {
@@ -23,9 +25,19 @@ import {
   userIdParamsSchema,
 } from '../validators/admin/admin.validator.js';
 import {
+  createReportBodySchema,
+  listReportsQuerySchema,
+  reportIdParamsSchema,
+  treatReportBodySchema,
+} from '../validators/admin/report.validator.js';
+import {
+  declarationIdParamsSchema,
+  moderationBodySchema,
+} from '../validators/admin/moderation.validator.js';
+import {
   changeDeclarationStatusSchema,
   createDeclarationSchema,
-  declarationIdParamsSchema,
+  declarationIdParamsSchema as declarationRouteIdParamsSchema,
   listMyDeclarationsQuerySchema,
   pictureBodySchema,
   updateDeclarationSchema,
@@ -38,6 +50,7 @@ import {
 import { createAdminRoutes } from './admin/admin.routes.js';
 import { createAuthRoutes } from './auth/auth.routes.js';
 import { createDeclarationRoutes } from './declarations/declaration.routes.js';
+import { createReportRoutes } from './reports/report.routes.js';
 import { createUserRoutes } from './users/user.routes.js';
 
 export function createApiRouter({
@@ -56,6 +69,8 @@ export function createApiRouter({
     accountDeletionService,
     declarationService,
     adminUserService,
+    reportService,
+    moderationService,
   } = services;
 
   const router = Router();
@@ -112,7 +127,7 @@ export function createApiRouter({
         requireAuth,
         createDeclarationSchema,
         listMyDeclarationsQuerySchema,
-        declarationIdParamsSchema,
+        declarationIdParamsSchema: declarationRouteIdParamsSchema,
         updateDeclarationSchema,
         changeDeclarationStatusSchema,
         pictureBodySchema,
@@ -123,16 +138,37 @@ export function createApiRouter({
     );
   }
 
-  // Admin routes: requireAuth and requireAdmin are applied inside the group.
-  if (requireAuth && adminUserService) {
+  if (requireAuth && reportService) {
+    router.use(
+      '/reports',
+      createReportRoutes({
+        reportController: createReportController({ reportService }),
+        requireAuth,
+        createReportBodySchema,
+      }),
+    );
+  }
+
+  if (requireAuth && adminUserService && reportService && moderationService) {
     router.use(
       '/admin',
       createAdminRoutes({
-        adminUserController: createAdminUserController({ adminUserService }),
+        controllers: {
+          adminUser: createAdminUserController({ adminUserService }),
+          report: createReportController({ reportService }),
+          moderation: createModerationController({ moderationService }),
+        },
         requireAuth,
-        listUsersQuerySchema,
-        userIdParamsSchema,
-        deleteUserBodySchema,
+        schemas: {
+          listUsersQuery: listUsersQuerySchema,
+          userIdParams: userIdParamsSchema,
+          deleteUserBody: deleteUserBodySchema,
+          listReportsQuery: listReportsQuerySchema,
+          reportIdParams: reportIdParamsSchema,
+          treatReportBody: treatReportBodySchema,
+          declarationIdParams: declarationIdParamsSchema,
+          moderationBody: moderationBodySchema,
+        },
       }),
     );
   }

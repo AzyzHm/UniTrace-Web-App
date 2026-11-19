@@ -25,9 +25,11 @@ describe('createContainer', () => {
       'auditService',
       'authService',
       'declarationService',
+      'moderationService',
       'passwordChangeService',
       'passwordResetService',
       'profileService',
+      'reportService',
       'sessionService',
     ]);
     expect(typeof container.requireAuth).toBe('function');
