@@ -21,12 +21,17 @@ describe('createContainer', () => {
 
     expect(Object.keys(container.services).sort()).toEqual([
       'accountDeletionService',
+      'adminUserService',
+      'auditService',
       'authService',
       'declarationService',
+      'moderationService',
       'passwordChangeService',
       'passwordResetService',
       'profileService',
+      'reportService',
       'sessionService',
+      'statsService',
     ]);
     expect(typeof container.requireAuth).toBe('function');
   });

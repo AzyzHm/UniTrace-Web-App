@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "UniTrace API",
-    "description": "Every route of the UniTrace backend. Run \"Auth / 4. Login\" first: it stores the access token in the collection variable accessToken, and every other request sends it. The refresh cookie is kept by the Postman cookie jar.",
+    "description": "Every route of the UniTrace backend. Run \"Auth / 4. Login\" first: it stores the access token in the collection variable accessToken, and every other request sends it. Run \"Admin / Login as admin\" to fill adminToken for the admin requests. The refresh cookie is kept by the Postman cookie jar.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -28,11 +28,31 @@
       "value": "Passw0rdDemo"
     },
     {
+      "key": "adminEmail",
+      "value": "admin@isamm.uma.tn"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Passw0rdDemo"
+    },
+    {
       "key": "accessToken",
       "value": ""
     },
     {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
       "key": "declarationId",
+      "value": ""
+    },
+    {
+      "key": "reportId",
       "value": ""
     }
   ],
@@ -487,6 +507,223 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/picture"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Login as admin",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Run this first. It stores the admin token in adminToken, which the other admin requests use."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete user (reason required)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Repeated spam\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "users", "{{userId}}"]
+            },
+            "description": "Set userId to a regular user, not an admin. Admins cannot be deleted, and this is permanent."
+          }
+        },
+        {
+          "name": "List open reports",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/reports?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "reports"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Treat report",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"treated\", \"resolution\": \"Duplicate removed\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/reports/{{reportId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "reports", "{{reportId}}"]
+            }
+          }
+        },
+        {
+          "name": "Hide declaration",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Looks like a fake listing\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/declarations/{{declarationId}}/hide",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "declarations", "{{declarationId}}", "hide"]
+            }
+          }
+        },
+        {
+          "name": "Restore declaration",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Checked, it is fine\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/declarations/{{declarationId}}/restore",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "declarations", "{{declarationId}}", "restore"]
+            }
+          }
+        },
+        {
+          "name": "Delete declaration (reason required)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Offensive content\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/declarations/{{declarationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "declarations", "{{declarationId}}"]
+            }
+          }
+        },
+        {
+          "name": "Statistics dashboard",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/stats?from=2026-11-01T00:00:00Z&to=2026-11-10T00:00:00Z",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "stats"],
+              "query": [
+                { "key": "from", "value": "2026-11-01T00:00:00Z" },
+                { "key": "to", "value": "2026-11-10T00:00:00Z" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Report a declaration",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"declarationId\": \"{{declarationId}}\", \"reason\": \"duplicate\", \"comment\": \"Same bag posted twice\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reports"]
+            },
+            "description": "Uses accessToken, so log in as a regular user (not the declaration owner) first."
           }
         }
       ]

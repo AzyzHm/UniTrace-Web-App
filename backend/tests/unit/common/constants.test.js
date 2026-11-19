@@ -38,14 +38,15 @@ describe('constants', () => {
     expect(CATEGORIES.phone.highValue).toBe(true);
   });
 
-  it('names the four events of the contract with the other binomes', () => {
+  it('names the events of the contract with the other binomes', () => {
     expect(EVENTS).toEqual({
       USER_DELETED: 'user.deleted',
       DECLARATION_CREATED: 'declaration.created',
       DECLARATION_UPDATED: 'declaration.updated',
       DECLARATION_STATUS_CHANGED: 'declaration.statusChanged',
+      REPORT_CREATED: 'report.created',
+      REPORT_TREATED: 'report.treated',
     });
-    expect(Object.isFrozen(EVENTS)).toBe(true);
   });
 
   it('cannot be mutated', () => {
