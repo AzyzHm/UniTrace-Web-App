@@ -200,7 +200,30 @@ export function createDeclarationService({
     return commitStatusChange({ id, found, target, actor: SYSTEM_ACTOR, reason });
   }
 
+  // Admin moderation: same transition table as everyone else, acting as ADMIN, with a reason
+  // stored in the status-change event. Used only by the moderation service.
+  async function changeStatusByAdmin(id, target, { reason }) {
+    const found = await declarationRepository.findById(id);
+    if (!found || found.status === DECLARATION_STATUSES.DELETED) throw notFound();
+
+    const from = found.status;
+    if (from === target) throw new ConflictError(`The declaration is already ${from}`);
+
+    if (!canTransition(from, target, ROLES.ADMIN)) {
+      throw new ConflictError(`A ${from} declaration cannot become ${target}`);
+    }
+    if (breaksRestoreRule(found, target)) {
+      throw new ConflictError(
+        `A hidden declaration can only be restored to ${found.statusBeforeHidden}`,
+      );
+    }
+
+    return commitStatusChange({ id, found, target, actor: ROLES.ADMIN, reason });
+  }
+
   return {
+    changeStatusByAdmin,
+
     async create(user, input, picture = null) {
       const data = {};
       for (const field of CREATABLE_FIELDS) {
