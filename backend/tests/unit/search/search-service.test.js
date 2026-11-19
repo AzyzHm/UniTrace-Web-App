@@ -12,12 +12,12 @@
  *   vitest (describe/it/expect).
  *
  * COMMENT LE LANCER
- *   npx vitest run tests/tests.search/unit/search/search-service.test.js
+ *   npx vitest run tests/unit/search/search-service.test.js
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EVENTS } from '../../../../src/constants/common/events.js';
-import { createEventBus } from '../../../../src/events/common/event-bus.js';
-import { createSearchService } from '../../../../src/services/search/search.service.js';
+import { EVENTS } from '../../../src/constants/common/events.js';
+import { createEventBus } from '../../../src/events/common/event-bus.js';
+import { createSearchService } from '../../../src/services/search/search.service.js';
 
 const user = { id: 'u1', role: 'user' };
 const admin = { id: 'a1', role: 'admin' };

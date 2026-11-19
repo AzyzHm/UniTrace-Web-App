@@ -1,8 +1,8 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
-import { createApp } from '../../../../src/app.js';
-import { EVENTS } from '../../../../src/constants/common/events.js';
-import { createContainer } from '../../../../src/container/index.js';
+import { createApp } from '../../../src/app.js';
+import { EVENTS } from '../../../src/constants/common/events.js';
+import { createContainer } from '../../../src/container/index.js';
 
 const config = {
   jwt: { accessSecret: 'j'.repeat(32), accessExpires: '15m' },

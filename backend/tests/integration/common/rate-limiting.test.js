@@ -272,7 +272,7 @@ describe('without limiters', () => {
 });
 
 describe('createRateLimiters', () => {
-  it('builds the four limiters', () => {
+  it('builds the six limiters', () => {
     const limiters = createRateLimiters();
 
     expect(Object.keys(limiters).sort()).toEqual([
@@ -280,6 +280,8 @@ describe('createRateLimiters', () => {
       'authFailures',
       'emailSending',
       'loginAccount',
+      'search',
+      'searchFilters',
     ]);
     for (const middleware of Object.values(limiters)) expect(typeof middleware).toBe('function');
   });

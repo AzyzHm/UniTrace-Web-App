@@ -12,14 +12,17 @@
  *   vitest (describe/it/expect), supertest (requêtes HTTP), tests/helpers/* (app de test, base en mémoire).
  *
  * COMMENT LE LANCER
- *   npx vitest run tests/tests.search/integration/search/search.test.js
+ *   npx vitest run tests/integration/search/search.test.js
  */
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { Declaration } from '../../../../src/models/declarations/declaration.model.js';
-import { User } from '../../../../src/models/users/user.model.js';
-import { buildTestApp } from '../../../helpers/build-test-app.js';
-import { clearTestDb, connectTestDb, disconnectTestDb } from '../../../helpers/test-db.js';
+import { Declaration } from '../../../src/models/declarations/declaration.model.js';
+import { User } from '../../../src/models/users/user.model.js';
+import { buildTestApp } from '../../helpers/build-test-app.js';
+import { clearTestDb, connectTestDb, disconnectTestDb } from '../../helpers/test-db.js';
+// added this import
+import { EVENTS } from '../../../src/constants/common/events.js';
+
 
 const SEARCH = '/api/v1/search/declarations';
 const FILTERS = '/api/v1/search/filters';
@@ -59,6 +62,7 @@ describe('search endpoints (with a database)', () => {
 
   beforeEach(async () => {
     await clearTestDb();
+      await ctx.eventBus.emit(EVENTS.DECLARATION_CREATED, {}); // empties the filters cache
     sara = await User.create({
       username: 'sara.k',
       email: 'sara.k@isamm.uma.tn',
