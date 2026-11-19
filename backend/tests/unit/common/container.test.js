@@ -31,6 +31,7 @@ describe('createContainer', () => {
       'profileService',
       'reportService',
       'sessionService',
+      'statsService',
     ]);
     expect(typeof container.requireAuth).toBe('function');
   });

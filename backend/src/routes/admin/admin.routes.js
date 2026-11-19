@@ -47,5 +47,8 @@ export function createAdminRoutes({ controllers, requireAuth, schemas }) {
     controllers.moderation.remove,
   );
 
+  // Statistics
+  router.get('/stats', validate(schemas.statsQuery, 'query'), controllers.stats.dashboard);
+
   return router;
 }

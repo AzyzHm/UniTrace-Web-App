@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createAdminUserController } from '../controllers/admin/admin-user.controller.js';
 import { createModerationController } from '../controllers/admin/moderation.controller.js';
 import { createReportController } from '../controllers/admin/report.controller.js';
+import { createStatsController } from '../controllers/admin/stats.controller.js';
 import { createAuthController } from '../controllers/auth/auth.controller.js';
 import { createDeclarationController } from '../controllers/declarations/declaration.controller.js';
 import { createUserController } from '../controllers/users/user.controller.js';
@@ -34,6 +35,7 @@ import {
   declarationIdParamsSchema,
   moderationBodySchema,
 } from '../validators/admin/moderation.validator.js';
+import { statsQuerySchema } from '../validators/admin/stats.validator.js';
 import {
   changeDeclarationStatusSchema,
   createDeclarationSchema,
@@ -71,6 +73,7 @@ export function createApiRouter({
     adminUserService,
     reportService,
     moderationService,
+    statsService,
   } = services;
 
   const router = Router();
@@ -149,7 +152,7 @@ export function createApiRouter({
     );
   }
 
-  if (requireAuth && adminUserService && reportService && moderationService) {
+  if (requireAuth && adminUserService && reportService && moderationService && statsService) {
     router.use(
       '/admin',
       createAdminRoutes({
@@ -157,6 +160,7 @@ export function createApiRouter({
           adminUser: createAdminUserController({ adminUserService }),
           report: createReportController({ reportService }),
           moderation: createModerationController({ moderationService }),
+          stats: createStatsController({ statsService }),
         },
         requireAuth,
         schemas: {
@@ -168,6 +172,7 @@ export function createApiRouter({
           treatReportBody: treatReportBodySchema,
           declarationIdParams: declarationIdParamsSchema,
           moderationBody: moderationBodySchema,
+          statsQuery: statsQuerySchema,
         },
       }),
     );
