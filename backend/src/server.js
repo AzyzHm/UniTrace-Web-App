@@ -11,7 +11,8 @@ async function start() {
   await connectDb(env.mongoUri);
 
   const container = createContainer({ config: env, logger });
-
+  
+  container.embeddingService.warmup().catch((err) => logger.error({ err }, 'Matching model warmup failed'));
   // Only the id is logged, no personal data.
   container.eventBus.on(EVENTS.USER_DELETED, ({ userId }) => {
     logger.info({ userId }, 'User account deleted');
