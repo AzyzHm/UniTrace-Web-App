@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createAuthController } from '../controllers/auth/auth.controller.js';
+import { createAdminUserController } from '../controllers/admin/admin-user.controller.js';
 import { createDeclarationController } from '../controllers/declarations/declaration.controller.js';
 import { createUserController } from '../controllers/users/user.controller.js';
 import {
@@ -17,6 +18,11 @@ import {
   verifyEmailSchema,
 } from '../validators/auth/auth.validator.js';
 import {
+  deleteUserBodySchema,
+  listUsersQuerySchema,
+  userIdParamsSchema,
+} from '../validators/admin/admin.validator.js';
+import {
   changeDeclarationStatusSchema,
   createDeclarationSchema,
   declarationIdParamsSchema,
@@ -29,6 +35,7 @@ import {
   createUpdateProfileSchema,
   deleteAccountSchema,
 } from '../validators/users/user.validator.js';
+import { createAdminRoutes } from './admin/admin.routes.js';
 import { createAuthRoutes } from './auth/auth.routes.js';
 import { createDeclarationRoutes } from './declarations/declaration.routes.js';
 import { createUserRoutes } from './users/user.routes.js';
@@ -48,6 +55,7 @@ export function createApiRouter({
     passwordChangeService,
     accountDeletionService,
     declarationService,
+    adminUserService,
   } = services;
 
   const router = Router();
@@ -55,7 +63,7 @@ export function createApiRouter({
   const refreshCookie = createRefreshCookie({ secure: secureCookies });
 
   // A group is mounted only when its dependencies are given, so a test can build the app with
-  // just the services it needs. Only /auth is public, the other two always sit behind requireAuth.
+  // just the services it needs. Only /auth is public, the other groups always sit behind requireAuth.
   if (authService) {
     router.use(
       '/auth',
@@ -111,6 +119,20 @@ export function createApiRouter({
         uploadPicture: createUploadPicture(),
         requirePicture,
         parseMultipartAttributes,
+      }),
+    );
+  }
+
+  // Admin routes: requireAuth and requireAdmin are applied inside the group.
+  if (requireAuth && adminUserService) {
+    router.use(
+      '/admin',
+      createAdminRoutes({
+        adminUserController: createAdminUserController({ adminUserService }),
+        requireAuth,
+        listUsersQuerySchema,
+        userIdParamsSchema,
+        deleteUserBodySchema,
       }),
     );
   }

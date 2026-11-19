@@ -21,6 +21,8 @@ describe('createContainer', () => {
 
     expect(Object.keys(container.services).sort()).toEqual([
       'accountDeletionService',
+      'adminUserService',
+      'auditService',
       'authService',
       'declarationService',
       'passwordChangeService',
