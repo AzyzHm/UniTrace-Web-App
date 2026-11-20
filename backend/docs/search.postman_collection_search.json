@@ -1,0 +1,524 @@
+{
+  "info": {
+    "name": "UniTrace Search API",
+    "description": "Search and filter endpoints (GET /api/v1/search/declarations and /filters). Run \"Setup\" first: it stores the user token (accessToken) and the admin token (adminToken). Then run the folder \"Scenarios\" with the Collection Runner. Needs the data of `npm run seed` (and `npm run seed:search` for the speed test). Scenario 11 must be run on its own, 51 iterations; scenario 16 twice in a row.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "email",
+      "value": "sara.k@isamm.uma.tn"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@isamm.uma.tn"
+    },
+    {
+      "key": "password",
+      "value": "Passw0rdDemo"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "pageIds",
+      "value": "[]"
+    },
+    {
+      "key": "rateCount",
+      "value": "0"
+    },
+    {
+      "key": "filtersBody",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup",
+      "item": [
+        {
+          "name": "Login (user)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (admin)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Scenarios",
+      "item": [
+        {
+          "name": "1. Search without filter",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('at most 20 results, newest first', () => { pm.expect(b.data.length).to.be.at.most(20); const d = b.data.map(x => new Date(x.date)); pm.expect(d).to.eql([...d].sort((a, b) => b - a)); });",
+                  "pm.test('default status and sort', () => { pm.expect(b.appliedFilters.status).to.eql(['pending', 'matched']); pm.expect(b.sort).to.eql({ field: 'date', order: 'desc' }); });",
+                  "pm.test('no private data', () => { const t = pm.response.text(); pm.expect(t).to.not.include('privateInfo'); pm.expect(t).to.not.include('\"owner\"'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Search with every filter",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?q=sac&type=found&category=wallet_bag&location=Library&color=black&dateFrom=2026-01-01&dateTo=2026-12-31&hasPhoto=false&sort=relevance"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const f = pm.response.json().appliedFilters;",
+                  "pm.test('appliedFilters echoes the query', () => pm.expect(f).to.include({ q: 'sac', type: 'found', category: 'wallet_bag', location: 'Library', color: 'black', hasPhoto: false }));",
+                  "pm.test('dates are applied', () => { pm.expect(f.dateFrom).to.be.a('string'); pm.expect(f.dateTo).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Text query alone",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?q=sac%20noir"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('default sort stays date_desc', () => pm.expect(pm.response.json().sort.field).to.eql('date'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Relevance without q",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?sort=relevance"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is RELEVANCE_REQUIRES_Q', () => pm.expect(pm.response.json().error.code).to.eql('RELEVANCE_REQUIRES_Q'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Date range",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?dateFrom=2026-10-01&dateTo=2026-10-31"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('every result is inside the range', () => pm.response.json().data.forEach(d => { const t = new Date(d.date).getTime(); pm.expect(t).to.be.within(Date.parse('2026-10-01T00:00:00Z'), Date.parse('2026-10-31T23:59:59.999Z')); }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. No result",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?q=zzzzqqqq"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('empty page flagged', () => { pm.expect(b.data).to.eql([]); pm.expect(b.pagination.total).to.eql(0); pm.expect(b.noResults).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Pagination (3 pages, no duplicate)",
+          "item": [
+            {
+              "name": "7a. Page 1",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/v1/search/declarations?limit=5&page=1"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('first page', () => { pm.expect(b.pagination.hasPrev).to.eql(false); pm.expect(b.pagination.hasNext).to.eql(b.pagination.totalPages > 1); });",
+                      "pm.collectionVariables.set('pageIds', JSON.stringify(b.data.map(d => d.id)));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "7b. Page 2",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/v1/search/declarations?limit=5&page=2"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('second page has a previous one', () => pm.expect(b.pagination.hasPrev).to.eql(true));",
+                      "const seen = JSON.parse(pm.collectionVariables.get('pageIds'));",
+                      "pm.test('no duplicate with page 1', () => b.data.forEach(d => pm.expect(seen).to.not.include(d.id)));",
+                      "pm.collectionVariables.set('pageIds', JSON.stringify(seen.concat(b.data.map(d => d.id))));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "7c. Page 3",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/v1/search/declarations?limit=5&page=3"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "const seen = JSON.parse(pm.collectionVariables.get('pageIds'));",
+                      "pm.test('no duplicate with pages 1 and 2', () => b.data.forEach(d => pm.expect(seen).to.not.include(d.id)));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "8. Unknown parameter",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?foo=bar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is INVALID_QUERY', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_QUERY'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9. Invalid parameter (limit=999)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?limit=999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is INVALID_QUERY', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_QUERY'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10. Not authenticated",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('error code is UNAUTHENTICATED', () => pm.expect(pm.response.json().error.code).to.eql('UNAUTHENTICATED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11. Rate limit (run 51 times)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Run this request with the Collection Runner, 51 iterations. The 51st answer must be a 429.",
+                  "const n = Number(pm.collectionVariables.get('rateCount') || 0) + 1;",
+                  "pm.collectionVariables.set('rateCount', n);",
+                  "if (n <= 50) { pm.test('request ' + n + ' is allowed', () => pm.response.to.have.status(200)); }",
+                  "else { pm.test('request ' + n + ' is limited', () => { pm.response.to.have.status(429); pm.expect(pm.response.headers.get('Retry-After')).to.exist; pm.expect(pm.response.json().error.code).to.eql('RATE_LIMITED'); }); pm.collectionVariables.set('rateCount', 0); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12. User asks for hidden",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?status=hidden"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is STATUS_FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('STATUS_FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13. Admin asks for hidden",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/declarations?status=hidden,deleted,pending",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('statuses are applied', () => pm.expect(pm.response.json().appliedFilters.status).to.eql(['hidden', 'deleted', 'pending']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14. Filters (user)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/filters"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('shape', () => pm.expect(Object.keys(b)).to.eql(['type', 'categories', 'locations', 'colors', 'statuses', 'hasPhoto']));",
+                  "pm.test('no hidden or deleted', () => pm.expect(b.statuses.map(s => s.key)).to.eql(['pending', 'matched', 'resolved', 'expired']));",
+                  "pm.test('French labels', () => pm.expect(b.type[0].label).to.eql('Perdu'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15. Filters (admin)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/filters",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('the six statuses', () => pm.expect(pm.response.json().statuses.map(s => s.key)).to.eql(['pending', 'matched', 'resolved', 'expired', 'hidden', 'deleted']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16. Filters cache (run twice)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/filters"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "// The second call must not query the database: compare the response times in the Runner, or",
+                  "// look at the MongoDB profiler / logs. Both calls must return the same body.",
+                  "const body = pm.response.text();",
+                  "const previous = pm.collectionVariables.get('filtersBody');",
+                  "if (previous) { pm.test('second call returns the same body', () => pm.expect(body).to.eql(previous)); pm.collectionVariables.unset('filtersBody'); }",
+                  "else { pm.collectionVariables.set('filtersBody', body); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
