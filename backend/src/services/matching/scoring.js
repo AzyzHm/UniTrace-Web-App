@@ -11,15 +11,20 @@ export function cosine(a, b) {
 }
 
 const percent = (value) => (value === null ? 'n/a' : `${Math.round(value * 100)}%`);
-const similarity = (a, b) => (a?.length && b?.length ? Math.max(0, cosine(a, b)) : null);
+
+// Floating point errors can push a perfect similarity to 1.0000003, which the Mongoose schema
+// (max: 1) refuses. Every score is kept between 0 and 1.
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+const similarity = (a, b) => (a?.length && b?.length ? clamp01(cosine(a, b)) : null);
 
 // lost and found are { declaration, textVector, locationVector, imageVector }.
 // Pure function: easy to unit test.
 export function calculateScore(lost, found, config = MATCHING_CONFIG) {
   const parts = {
-    description: Math.max(0, cosine(lost.textVector, found.textVector)),
+    description: clamp01(cosine(lost.textVector, found.textVector)),
     location: similarity(lost.locationVector, found.locationVector),
-    date: dateScore(lost.declaration.date, found.declaration.date, config.DATE_DECAY_DAYS),
+    date: clamp01(dateScore(lost.declaration.date, found.declaration.date, config.DATE_DECAY_DAYS)),
     image: similarity(lost.imageVector, found.imageVector),
   };
 
@@ -31,12 +36,14 @@ export function calculateScore(lost, found, config = MATCHING_CONFIG) {
     weightSum += config.WEIGHTS[name];
     total += config.WEIGHTS[name] * value;
   }
-  const globalScore = total / weightSum;
+  const globalScore = clamp01(total / weightSum);
 
   const confidence =
-    globalScore >= config.HIGH_CONFIDENCE ? CONFIDENCE.HIGH
-    : globalScore >= config.MEDIUM_CONFIDENCE ? CONFIDENCE.MEDIUM
-    : CONFIDENCE.LOW;
+    globalScore >= config.HIGH_CONFIDENCE
+      ? CONFIDENCE.HIGH
+      : globalScore >= config.MEDIUM_CONFIDENCE
+        ? CONFIDENCE.MEDIUM
+        : CONFIDENCE.LOW;
 
   return {
     descriptionScore: parts.description,
@@ -52,5 +59,8 @@ export function calculateScore(lost, found, config = MATCHING_CONFIG) {
 }
 
 export function passesThreshold(score, config = MATCHING_CONFIG) {
-  return score.descriptionScore >= config.MIN_DESCRIPTION_SCORE && score.globalScore >= config.MIN_GLOBAL_SCORE;
+  return (
+    score.descriptionScore >= config.MIN_DESCRIPTION_SCORE &&
+    score.globalScore >= config.MIN_GLOBAL_SCORE
+  );
 }
