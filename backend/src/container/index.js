@@ -24,7 +24,7 @@ export function createContainer({ config, logger = silentLogger, clock, override
   // Frozen, and limited to what the app and the tests need: the services, the auth middleware
   // and a few shared objects.
   return Object.freeze({
-    services: { ...auth.services, ...users.services, ...declarations.services, ...search.services }, // + searchService
+    services: { ...auth.services, ...users.services, ...declarations.services, ...search.services }, // + searchService, savedSearchService
     requireAuth: auth.requireAuth,
 
     eventBus: common.eventBus,
@@ -34,6 +34,7 @@ export function createContainer({ config, logger = silentLogger, clock, override
     declarationRepository: declarations.declarationRepository,
     // [Binôme 2 - recherche] exposé pour pouvoir le remplacer/inspecter en test
     searchRepository: search.searchRepository,
+    savedSearchRepository: search.savedSearchRepository,
     pictureStorage: declarations.pictureStorage,
   });
 }

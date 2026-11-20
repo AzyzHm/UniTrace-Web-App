@@ -26,6 +26,7 @@ describe('createContainer', () => {
       'passwordChangeService',
       'passwordResetService',
       'profileService',
+      'savedSearchService',
       'searchService',
       'sessionService',
     ]);

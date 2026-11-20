@@ -23,7 +23,6 @@ import { clearTestDb, connectTestDb, disconnectTestDb } from '../../helpers/test
 // added this import
 import { EVENTS } from '../../../src/constants/common/events.js';
 
-
 const SEARCH = '/api/v1/search/declarations';
 const FILTERS = '/api/v1/search/filters';
 
@@ -62,7 +61,7 @@ describe('search endpoints (with a database)', () => {
 
   beforeEach(async () => {
     await clearTestDb();
-      await ctx.eventBus.emit(EVENTS.DECLARATION_CREATED, {}); // empties the filters cache
+    await ctx.eventBus.emit(EVENTS.DECLARATION_CREATED, {}); // empties the filters cache
     sara = await User.create({
       username: 'sara.k',
       email: 'sara.k@isamm.uma.tn',

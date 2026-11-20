@@ -25,6 +25,7 @@ import {
   pictureBodySchema,
   updateDeclarationSchema,
 } from '../validators/declarations/declaration.validator.js';
+import { savedSearchSchema } from '../validators/search/saved-search.validator.js';
 import { searchQuerySchema } from '../validators/search/search.validator.js';
 import {
   changePasswordSchema,
@@ -52,6 +53,7 @@ export function createApiRouter({
     accountDeletionService,
     declarationService,
     searchService,
+    savedSearchService,
   } = services;
 
   const router = Router();
@@ -120,15 +122,17 @@ export function createApiRouter({
   }
 
   // [Binôme 2 - recherche] Monte /api/v1/search. Comme pour les autres groupes, il n'est monté
-  // que si ses dépendances existent. C'est ici que le controller, le schéma Joi et les limiteurs
-  // sont donnés à la fabrique des routes (routes/search/search.routes.js).
-  if (requireAuth && searchService) {
+  // que si ses dépendances existent (les deux services : recherche et recherches sauvegardées).
+  // C'est ici que le controller, les schémas Joi et les limiteurs sont donnés à la fabrique des
+  // routes (routes/search/search.routes.js).
+  if (requireAuth && searchService && savedSearchService) {
     router.use(
       '/search',
       createSearchRoutes({
-        searchController: createSearchController({ searchService }),
+        searchController: createSearchController({ searchService, savedSearchService }),
         requireAuth,
         searchQuerySchema,
+        savedSearchSchema,
         rateLimiters,
       }),
     );

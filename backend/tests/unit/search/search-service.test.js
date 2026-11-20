@@ -23,8 +23,9 @@ const user = { id: 'u1', role: 'user' };
 const admin = { id: 'a1', role: 'admin' };
 const BASE = { sort: 'date_desc', page: 1, limit: 20 };
 
-function build({ total = 0, items = [], cacheTtlMs, clock } = {}) {
+function build({ total = 0, items = [], cacheTtlMs, clock, found = null } = {}) {
   const searchRepository = {
+    findById: vi.fn().mockResolvedValue(found),
     count: vi.fn().mockResolvedValue(total),
     findPage: vi.fn().mockResolvedValue(items),
     topLocations: vi.fn().mockResolvedValue(['Library', 'Amphi B']),
@@ -280,5 +281,57 @@ describe('getFilters', () => {
 
     await expect(ctx.service.getFilters(user)).rejects.toThrow('mongo down');
     await expect(ctx.service.getFilters(user)).resolves.toBeDefined();
+  });
+});
+
+describe('getDeclarationById', () => {
+  const admin = { id: 'a1', role: 'admin' };
+  const active = { _id: 'd1', status: 'pending', deletedAt: null };
+
+  it('returns an active declaration to any connected user', async () => {
+    const { service, searchRepository } = build({ found: active });
+
+    await expect(service.getDeclarationById(user, 'd1')).resolves.toBe(active);
+    expect(searchRepository.findById).toHaveBeenCalledWith('d1');
+  });
+
+  it.each(['pending', 'matched', 'resolved', 'expired'])(
+    'shows a %s declaration to a user',
+    async (status) => {
+      const { service } = build({ found: { ...active, status } });
+
+      await expect(service.getDeclarationById(user, 'd1')).resolves.toMatchObject({ status });
+    },
+  );
+
+  it('answers NOT_FOUND when the id does not exist', async () => {
+    const { service } = build({ found: null });
+
+    await expect(service.getDeclarationById(user, 'd1')).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it.each([
+    ['hidden', { status: 'hidden' }],
+    ['deleted', { status: 'deleted' }],
+    ['soft deleted', { deletedAt: new Date() }],
+  ])('hides a %s declaration from a user with NOT_FOUND (not FORBIDDEN)', async (label, change) => {
+    const { service } = build({ found: { ...active, ...change } });
+
+    await expect(service.getDeclarationById(user, 'd1')).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it.each([
+    ['hidden', { status: 'hidden' }],
+    ['deleted', { status: 'deleted', deletedAt: new Date() }],
+  ])('shows a %s declaration to an admin', async (label, change) => {
+    const { service } = build({ found: { ...active, ...change } });
+
+    await expect(service.getDeclarationById(admin, 'd1')).resolves.toMatchObject(change);
   });
 });

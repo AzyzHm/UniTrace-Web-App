@@ -3,22 +3,36 @@
  *
  * RÔLE
  *   "Serveur de salle" de la recherche : il prend la requête HTTP, la transmet au service, puis
- *   met la réponse en forme. Il ne contient AUCUNE règle métier (elles sont dans le service).
+ *   met la réponse en forme. Il ne contient AUCUNE règle métier (elles sont dans les services).
+ *
+ *   Six actions, une par route :
+ *     searchDeclarations  GET    /search/declarations  recherche combinée
+ *     getFilters          GET    /search/filters       valeurs des listes déroulantes
+ *     saveSearch          POST   /search/saved         sauvegarder une recherche
+ *     listSavedSearches   GET    /search/saved         lister mes recherches sauvegardées
+ *     deleteSavedSearch   DELETE /search/saved/:id     supprimer une recherche sauvegardée
+ *     getDeclaration      GET    /search/:id           lire UNE déclaration
  *
  * UTILISÉ PAR
  *   - routes/index.js (crée le controller) puis routes/search/search.routes.js (l'appelle)
  *
  * UTILISE
  *   - services/search/search.service.js (reçu en paramètre : searchService)
+ *   - services/search/saved-search.service.js (reçu en paramètre : savedSearchService)
  *   - presenters/declarations/declaration.presenter.js (toPublicDeclarationResponse)
+ *   - presenters/search/saved-search.presenter.js (toSavedSearchResponse)
  */
 import { toPublicDeclarationResponse } from '../../presenters/declarations/declaration.presenter.js';
+import { toSavedSearchResponse } from '../../presenters/search/saved-search.presenter.js';
 
-export function createSearchController({ searchService }) {
-  // Garde : si on oublie de fournir le service, l'application refuse de démarrer, au lieu de
+export function createSearchController({ searchService, savedSearchService }) {
+  // Garde : si on oublie de fournir un service, l'application refuse de démarrer, au lieu de
   // planter chez le premier utilisateur.
   if (!searchService) {
     throw new Error('createSearchController(): searchService is required');
+  }
+  if (!savedSearchService) {
+    throw new Error('createSearchController(): savedSearchService is required');
   }
 
   return {
@@ -37,6 +51,36 @@ export function createSearchController({ searchService }) {
     // GET /search/filters : le service sait déjà quels statuts montrer selon le rôle.
     async getFilters(req, res) {
       res.status(200).json(await searchService.getFilters(req.user));
+    },
+
+    // POST /search/saved : req.body est déjà validé et nettoyé (validateSavedSearch).
+    // 201 Created + la recherche créée, pour que le front l'ajoute à sa liste sans la recharger.
+    async saveSearch(req, res) {
+      const saved = await savedSearchService.save(req.user, req.body);
+
+      res.status(201).json({ savedSearch: toSavedSearchResponse(saved) });
+    },
+
+    // GET /search/saved : { data: [...] }, même enveloppe que la recherche de déclarations.
+    async listSavedSearches(req, res) {
+      const items = await savedSearchService.list(req.user);
+
+      res.status(200).json({ data: items.map(toSavedSearchResponse) });
+    },
+
+    // DELETE /search/saved/:id : 204 No Content (rien à renvoyer), comme DELETE /declarations/:id.
+    async deleteSavedSearch(req, res) {
+      await savedSearchService.remove(req.user, req.params.id);
+
+      res.status(204).end();
+    },
+
+    // GET /search/:id : une déclaration. Presenter PUBLIC, comme dans la liste de recherche :
+    // ni privateInfo ni owner, quel que soit l'utilisateur.
+    async getDeclaration(req, res) {
+      const found = await searchService.getDeclarationById(req.user, req.params.id);
+
+      res.status(200).json({ declaration: toPublicDeclarationResponse(found) });
     },
   };
 }

@@ -9,6 +9,7 @@
  * UTILISÉ PAR
  *   - routes/index.js (passe le schéma aux routes)
  *   - middlewares/search/validate-search-query.js (l'exécute)
+ *   - validators/search/saved-search.validator.js (réutilise searchCriteriaFields)
  *
  * UTILISE
  *   - validators/declarations/declaration-fields.js (typeField, categoryField : mêmes règles
@@ -73,9 +74,11 @@ function toEndOfDay(value, helpers) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Le schéma, champ par champ. Tout est facultatif sauf les défauts (sort, page, limit).
+// Les CRITÈRES : ce que l'on cherche (texte, type, catégorie, lieu, couleur, dates, photo).
+// Exportés à part car la recherche sauvegardée (saved-search.validator.js) en a besoin aussi :
+// les deux schémas partagent donc exactement les mêmes règles et ne peuvent pas se contredire.
 // ---------------------------------------------------------------------------------------------
-export const searchQuerySchema = Joi.object({
+export const searchCriteriaFields = {
   // Texte libre. Pas de minimum ici : un q d'un seul caractère n'est pas une erreur, le service
   // l'ignorera. Maximum 200 caractères. Vide autorisé.
   q: Joi.string().trim().max(MAX_TEXT_QUERY_LENGTH).allow(''),
@@ -88,10 +91,6 @@ export const searchQuerySchema = Joi.object({
   location: Joi.string().trim().min(1).max(LIMITS.LOCATION_MAX),
   color: Joi.string().trim().min(1).max(LIMITS.ATTRIBUTE_VALUE_MAX),
 
-  // Un ou plusieurs statuts (voir statusListField). Le droit d'utiliser hidden/deleted est
-  // vérifié plus tard dans le service, car il dépend du rôle.
-  status: statusListField(),
-
   dateFrom: Joi.date().iso(),
   dateTo: Joi.date()
     .iso()
@@ -102,6 +101,23 @@ export const searchQuerySchema = Joi.object({
 
   // "true" / "false" (texte de l'URL) deviennent de vrais booléens.
   hasPhoto: Joi.boolean(),
+};
+
+// Message plus clair quand dateTo est avant dateFrom (partagé par les deux schémas).
+export const DATE_RANGE_MESSAGES = {
+  'date.min': '{{#label}} must be greater than or equal to dateFrom',
+};
+
+// ---------------------------------------------------------------------------------------------
+// Le schéma de la query de recherche : les critères + status, tri et pagination.
+// Tout est facultatif sauf les défauts (sort, page, limit).
+// ---------------------------------------------------------------------------------------------
+export const searchQuerySchema = Joi.object({
+  ...searchCriteriaFields,
+
+  // Un ou plusieurs statuts (voir statusListField). Le droit d'utiliser hidden/deleted est
+  // vérifié plus tard dans le service, car il dépend du rôle.
+  status: statusListField(),
 
   // Tri : une des 5 valeurs autorisées, date_desc par défaut.
   sort: Joi.string()
@@ -112,7 +128,4 @@ export const searchQuerySchema = Joi.object({
   // ?limit=999 est donc refusé : impossible de demander toute la base d'un coup.
   page: Joi.number().integer().min(1).default(PAGINATION.DEFAULT_PAGE),
   limit: Joi.number().integer().min(1).max(PAGINATION.MAX_LIMIT).default(PAGINATION.DEFAULT_LIMIT),
-}).messages({
-  // Message plus clair quand dateTo est avant dateFrom.
-  'date.min': '{{#label}} must be greater than or equal to dateFrom',
-});
+}).messages(DATE_RANGE_MESSAGES);

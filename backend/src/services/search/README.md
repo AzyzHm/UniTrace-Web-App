@@ -1,21 +1,89 @@
 # Search (binome 2)
 
-Two endpoints, both behind `requireAuth`, mounted on `/api/v1/search`.
+Six endpoints, all behind `requireAuth`, mounted on `/api/v1/search`.
 
-| Method | Route                  | Limiter                            | Role                                       |
-| ------ | ---------------------- | ---------------------------------- | ------------------------------------------ |
-| GET    | `/search/declarations` | `search` (50 / min / user)         | Combined search: filters, sort, pagination |
-| GET    | `/search/filters`      | `searchFilters` (120 / min / user) | Values of the dropdowns of the search form |
+| Method | Route                  | Middleware (after `requireAuth`)                          | Role                                               |
+| ------ | ---------------------- | --------------------------------------------------------- | -------------------------------------------------- |
+| GET    | `/search/declarations` | `search` limiter (50 / min / user), `validateSearchQuery` | Combined search: filters, sort, pagination         |
+| GET    | `/search/filters`      | `searchFilters` limiter (120 / min / user)                | Values of the dropdowns of the search form         |
+| POST   | `/search/saved`        | `validateSavedSearch`                                     | Save the criteria of a search, to be alerted later |
+| GET    | `/search/saved`        | none                                                      | List my saved searches                             |
+| DELETE | `/search/saved/:id`    | `validateObjectId`                                        | Delete one of my saved searches                    |
+| GET    | `/search/:id`          | `validateObjectId`                                        | Read ONE declaration (public shape)                |
 
-Not built on purpose: `GET /search/:id` (use `GET /declarations/:id`) and saved searches.
+`GET /search/:id` is declared **last** in `routes/search/search.routes.js`: Express tries routes in
+the order they are written, so `/search/filters` and `/search/saved` must come before it or they
+would be read as an id.
 
 ## Layers
 
-`routes/search` → `controllers/search` → `services/search/search.service.js` →
-`repositories/search`. The filter is built by the pure function `search-filter-builder.js`, which
-the unit tests check without a database. Everything is wired in `container/search.js`, and the
-query is validated by `validators/search/search.validator.js` through
-`middlewares/search/validate-search-query.js`.
+`routes/search` → `controllers/search` → services → `repositories/search`.
+
+- Search and `GET /search/:id`: `services/search/search.service.js` and
+  `repositories/search/search.repository.js`. The filter is built by the pure function
+  `search-filter-builder.js`, which the unit tests check without a database. The query is
+  validated by `validators/search/search.validator.js` through
+  `middlewares/search/validate-search-query.js`.
+- Saved searches: `services/search/saved-search.service.js`,
+  `repositories/search/saved-search.repository.js`, model `models/search/saved-search.model.js`
+  (collection `savedsearches`), presenter `presenters/search/saved-search.presenter.js`. The body
+  is validated by `validators/search/saved-search.validator.js` through
+  `middlewares/search/validate-saved-search.js`.
+- `middlewares/common/validate-object-id.js` checks `:id` (24 hexadecimal characters) for both
+  `GET /search/:id` and `DELETE /search/saved/:id`.
+- Everything is wired in `container/search.js`.
+
+## Saved searches
+
+A saved search is `{ owner, name?, criteria }`. Only the **criteria** are stored (the question),
+never the results (the answer, which changes all the time).
+
+| Endpoint                   | Success                                                  | Errors                                                                        |
+| -------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `POST /search/saved`       | `201 { savedSearch: { id, name, criteria, createdAt } }` | `400 VALIDATION_ERROR`, `409 SAVED_SEARCH_LIMIT`, `401`                       |
+| `GET /search/saved`        | `200 { data: [ ...savedSearch ] }`, newest first         | `401`                                                                         |
+| `DELETE /search/saved/:id` | `204`, no body                                           | `404 NOT_FOUND` (missing OR not mine), `400 VALIDATION_ERROR` (bad id), `401` |
+
+Body of `POST /search/saved` (all optional, but **at least one criterion** is required):
+
+```json
+{
+  "name": "My black bag",
+  "q": "sac noir",
+  "type": "lost",
+  "category": "wallet_bag",
+  "location": "Library",
+  "color": "black",
+  "dateFrom": "2026-10-01",
+  "dateTo": "2026-10-31",
+  "hasPhoto": false
+}
+```
+
+- **Criteria** are the same fields and rules as the search (`q`, `type`, `category`, `location`,
+  `color`, `dateFrom`, `dateTo`, `hasPhoto`): both schemas share `searchCriteriaFields`. Not
+  allowed: `status`, `sort`, `page`, `limit` (they describe the display, not what is watched; a
+  new declaration is always `pending`) and any other field, such as `owner` (`400`).
+- `q` needs at least 2 characters here (the search silently ignores a shorter one, but an alert on
+  an ignored text would watch nothing). `hasPhoto: false` counts as a criterion ("without photo").
+  A date only `dateTo` is stored as the end of that day, as in the search.
+- **Ownership**: every read and delete filters on the owner. A saved search of another user answers
+  `404`, never `403`, so its existence is not revealed.
+- **Limit**: 20 per user (`MAX_SAVED_SEARCHES_PER_USER`), then `409 SAVED_SEARCH_LIMIT`.
+- **Account deletion**: the service listens to `user.deleted` and removes that user's saved
+  searches.
+- **Not built yet: sending the alert.** Today the criteria are only stored. Comparing each new
+  declaration (`declaration.created`) with the saved criteria and notifying the user needs a
+  sending service (email or notification) that does not exist in the project yet.
+
+## GET /search/:id
+
+Returns `200 { declaration }` in the **public** shape, like the results of the search: never
+`privateInfo` or `owner`, for every role (including the owner and admins). The full view stays on
+`GET /declarations/:id`. Same visibility as the search: `pending`, `matched`, `resolved`,
+`expired` for everyone; `hidden`, `deleted` and soft deleted declarations (`deletedAt` set) are
+`404` for a user (not `403`, so they look absent) and visible to an admin. Unknown id: `404`.
+Malformed id: `400 VALIDATION_ERROR`.
 
 ## Decisions
 
@@ -61,10 +129,14 @@ with `.explain('executionStats')` in `mongosh`.
 
 ## Tests
 
-- `tests/unit/search`: validator, filter builder, service (cache, events, roles) and the HTTP
-  routes with a fake repository.
-- `tests/integration/search`: real queries on the in-memory database.
-- `docs/search.postman_collection.json`: 16 scenarios for the Collection Runner.
+- `tests/unit/search`: validators, filter builder, services (cache, events, roles, saved
+  searches, `getDeclarationById`), presenter, model and the HTTP routes with a fake repository.
+- `tests/unit/common/validate-object-id.test.js`: the `:id` middleware.
+- `tests/integration/search`: `search.test.js` (queries), `saved-search.test.js` (save, list,
+  delete, ownership, limit, account deletion) and `search-by-id.test.js`, on the in-memory
+  database.
+- `docs/search.postman_collection_search.json`: 28 scenarios for the Collection Runner
+  (17 to 28 cover the saved searches and `GET /search/:id`).
 
 ## Open points for binome 1
 

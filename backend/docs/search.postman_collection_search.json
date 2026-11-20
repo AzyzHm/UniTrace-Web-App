@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "UniTrace Search API",
-    "description": "Search and filter endpoints (GET /api/v1/search/declarations and /filters). Run \"Setup\" first: it stores the user token (accessToken) and the admin token (adminToken). Then run the folder \"Scenarios\" with the Collection Runner. Needs the data of `npm run seed` (and `npm run seed:search` for the speed test). Scenario 11 must be run on its own, 51 iterations; scenario 16 twice in a row.",
+    "description": "Search endpoints: GET /api/v1/search/declarations, /filters, /:id and the saved searches (POST, GET /saved, DELETE /saved/:id). Run \"Setup\" first: it stores the user token (accessToken) and the admin token (adminToken). Then run the folder \"Scenarios\" with the Collection Runner. Needs the data of `npm run seed` (and `npm run seed:search` for the speed test). Scenario 11 must be run on its own, 51 iterations; scenario 16 twice in a row. Scenarios 17 to 22 and 24 to 28 run in order: 17 creates a saved search, 22 deletes it, so the account ends with the same number of saved searches as before.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -49,6 +49,14 @@
     },
     {
       "key": "filtersBody",
+      "value": ""
+    },
+    {
+      "key": "savedId",
+      "value": ""
+    },
+    {
+      "key": "declarationId",
       "value": ""
     }
   ],
@@ -513,6 +521,305 @@
                   "const previous = pm.collectionVariables.get('filtersBody');",
                   "if (previous) { pm.test('second call returns the same body', () => pm.expect(body).to.eql(previous)); pm.collectionVariables.unset('filtersBody'); }",
                   "else { pm.collectionVariables.set('filtersBody', body); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17. Save a search",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/search/saved",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My black bag\",\n  \"q\": \"  sac noir \",\n  \"type\": \"lost\",\n  \"category\": \"wallet_bag\",\n  \"hasPhoto\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const s = pm.response.json().savedSearch;",
+                  "pm.test('criteria are stored and trimmed', () => pm.expect(s.criteria).to.eql({ q: 'sac noir', type: 'lost', category: 'wallet_bag', hasPhoto: false }));",
+                  "pm.test('no owner in the answer', () => pm.expect(pm.response.text()).to.not.include('owner'));",
+                  "pm.collectionVariables.set('savedId', s.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18. Save without any criterion",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/search/saved",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nothing to watch\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));",
+                  "pm.test('says a criterion is required', () => pm.expect(pm.response.text()).to.include('at least one search criterion'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19. Save with invalid values",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/search/saved",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"q\": \"a\",\n  \"type\": \"stolen\",\n  \"sort\": \"relevance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "const fields = pm.response.json().error.details.map(d => d.field).sort();",
+                  "pm.test('q (1 character), type (unknown) and sort (not a criterion) are refused', () => pm.expect(fields).to.eql(['q', 'sort', 'type']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20. List my saved searches",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/saved"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('the search of scenario 17 is listed', () => pm.expect(b.data.map(s => s.id)).to.include(pm.collectionVariables.get('savedId')));",
+                  "pm.test('newest first', () => { const t = b.data.map(s => new Date(s.createdAt).getTime()); pm.expect(t).to.eql([...t].sort((x, y) => y - x)); });",
+                  "pm.test('no owner in the answer', () => pm.expect(pm.response.text()).to.not.include('owner'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21. Delete a saved search of someone else (admin tries the id of the user)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/search/saved/{{savedId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404, never 403', () => pm.response.to.have.status(404));",
+                  "pm.test('error code is NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22. Delete my saved search",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/search/saved/{{savedId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23. Delete it again",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/search/saved/{{savedId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24. Delete with an invalid id",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/search/saved/not-an-id"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25. Get one declaration",
+          "item": [
+            {
+              "name": "25a. Find an id (search, limit 1)",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/v1/search/declarations?limit=1"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('the seed has at least one declaration', () => pm.expect(b.data.length).to.eql(1));",
+                      "pm.collectionVariables.set('declarationId', b.data[0].id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "25b. GET /search/:id",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/api/v1/search/{{declarationId}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                      "const d = pm.response.json().declaration;",
+                      "pm.test('same declaration as the search result', () => pm.expect(d.id).to.eql(pm.collectionVariables.get('declarationId')));",
+                      "pm.test('public shape', () => pm.expect(Object.keys(d)).to.include.members(['id', 'title', 'type', 'description', 'category', 'attributes', 'status', 'date', 'location']));",
+                      "pm.test('no private data', () => { const t = pm.response.text(); pm.expect(t).to.not.include('privateInfo'); pm.expect(t).to.not.include('\"owner\"'); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "26. Get one: unknown id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/650000000000000000000999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('error code is NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27. Get one: invalid id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/not-an-id"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28. Get one / saved: not authenticated",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/search/saved",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('error code is UNAUTHENTICATED', () => pm.expect(pm.response.json().error.code).to.eql('UNAUTHENTICATED'));"
                 ]
               }
             }

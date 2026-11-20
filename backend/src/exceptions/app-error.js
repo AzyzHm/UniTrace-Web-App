@@ -100,3 +100,12 @@ export class StatusForbiddenError extends AppError {
     super(message, { statusCode: 400, code: 'STATUS_FORBIDDEN', details });
   }
 }
+
+// [Binôme 2 - recherche] L'utilisateur a déjà le maximum de recherches sauvegardées
+// (levée par services/search/saved-search.service.js). 409 : la requête est valide, mais l'état
+// actuel du compte ne permet pas d'en ajouter une de plus.
+export class SavedSearchLimitError extends AppError {
+  constructor(message = 'You have reached the maximum number of saved searches') {
+    super(message, { statusCode: 409, code: 'SAVED_SEARCH_LIMIT' });
+  }
+}

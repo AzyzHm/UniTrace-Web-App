@@ -4,8 +4,8 @@
  * RÔLE
  *   "Magasinier" de la recherche : il exécute les requêtes MongoDB et rien d'autre. Il ne
  *   décide d'aucune règle (statuts autorisés, droits...) : tout cela est dans le service.
- *   Quatre opérations : compter, lire une page, lister les lieux les plus utilisés, idem pour
- *   les couleurs.
+ *   Cinq opérations : compter, lire une page, lire UNE déclaration par son id, lister les lieux
+ *   les plus utilisés, idem pour les couleurs.
  *
  * UTILISÉ PAR
  *   - services/search/search.service.js
@@ -76,6 +76,14 @@ export function createSearchRepository({ model = Declaration } = {}) {
 
       // lean() : renvoie des objets JavaScript simples (plus rapide), qui vont directement au presenter.
       return model.find(filter, projection).sort(sort).skip(skip).limit(limit).lean();
+    },
+
+    // Une seule déclaration par son id (GET /search/:id). Mêmes champs exclus que pour la liste :
+    // jamais privateInfo, owner ni statusBeforeHidden. Renvoie null si l'id n'existe pas.
+    // Le repository ne regarde PAS le statut : décider qui a le droit de voir une déclaration
+    // supprimée ou cachée est une règle métier, elle est dans le service.
+    findById(id) {
+      return model.findById(id, { ...EXCLUDED_FIELDS }).lean();
     },
 
     // Listes pour les menus déroulantes (limitées par le service).

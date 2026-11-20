@@ -9,6 +9,7 @@
  *     - pagination (page, limite, totalPages, hasNext, hasPrev)
  *     - repli du filtre "lieu" (exact, puis sans casse ni accents)
  *     - cache de 5 minutes des listes de filtres, vidé quand une déclaration change
+ *     - lecture d'UNE déclaration (GET /search/:id) : supprimée ou cachée = introuvable, sauf admin
  *   Pour lire la base il demande au repository ; pour fabriquer le filtre MongoDB il appelle le builder.
  *
  * UTILISÉ PAR
@@ -42,7 +43,11 @@ import {
   PUBLIC_STATUSES,
   SEARCH_SORTS,
 } from '../../constants/search/search-options.js';
-import { RelevanceRequiresQueryError, StatusForbiddenError } from '../../exceptions/app-error.js';
+import {
+  NotFoundError,
+  RelevanceRequiresQueryError,
+  StatusForbiddenError,
+} from '../../exceptions/app-error.js';
 import { isAdminRole } from '../../constants/common/roles.js';
 import { buildSearchFilter } from './search-filter-builder.js';
 
@@ -207,6 +212,30 @@ export function createSearchService({
         },
         noResults: total === 0,
       };
+    },
+
+    // ============================ UNE SEULE DÉCLARATION ====================================
+    // GET /search/:id. `id` est déjà vérifié par validateObjectId (24 caractères hexadécimaux).
+    //
+    // Règle de visibilité, volontairement IDENTIQUE à celle de la liste :
+    //   - tout utilisateur connecté voit pending, matched, resolved, expired ;
+    //   - hidden et deleted (et toute déclaration supprimée en douceur, deletedAt rempli) ne sont
+    //     visibles que par un admin, exactement comme avec ?status=hidden dans la recherche.
+    // Pour un utilisateur normal, ces déclarations répondent 404 (comme si elles n'existaient pas) :
+    // un 403 révélerait qu'elles existent.
+    async getDeclarationById(user, id) {
+      const found = await searchRepository.findById(id);
+      if (!found) throw new NotFoundError('Declaration not found');
+
+      const isHiddenFromUsers =
+        ADMIN_ONLY_STATUSES.includes(found.status) || Boolean(found.deletedAt);
+      if (isHiddenFromUsers && !isAdminRole(user.role)) {
+        throw new NotFoundError('Declaration not found');
+      }
+
+      // Le controller la passera au presenter PUBLIC : pas de privateInfo ni d'owner, même pour
+      // le propriétaire ou un admin (le détail complet reste sur GET /declarations/:id).
+      return found;
     },
 
     // ============================ LISTES DÉROULANTES (avec cache) ==========================
