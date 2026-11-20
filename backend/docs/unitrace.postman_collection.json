@@ -1,139 +1,769 @@
-[
-  {
-    "name": "Matching",
-    "item": [
+{
+  "info": {
+    "name": "UniTrace API",
+    "description": "Every route of the UniTrace backend. Run \"Auth / 4. Login\" first: it stores the access token in the collection variable accessToken, and every other request sends it. Run \"Admin / Login as admin\" to fill adminToken for the admin requests. The refresh cookie is kept by the Postman cookie jar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
       {
-        "name": "List my correspondences",
-        "request": {
-          "method": "GET",
-          "url": {
-            "raw": "{{baseUrl}}/api/v1/correspondences?page=1&limit=20",
-            "host": ["{{baseUrl}}"],
-            "path": ["api", "v1", "correspondences"],
-            "query": [
-              { "key": "page", "value": "1" },
-              { "key": "limit", "value": "20" },
-              { "key": "status", "value": "pending", "disabled": true }
-            ]
-          },
-          "description": "All the matches found for the declarations of the logged-in user."
-        },
-        "event": [
-          {
-            "listen": "test",
-            "script": {
-              "type": "text/javascript",
-              "exec": [
-                "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                "const body = pm.response.json();",
-                "const list = body.correspondences || body.items || body.data || [];",
-                "if (list.length) pm.collectionVariables.set('correspondenceId', list[0].id);"
-              ]
-            }
-          }
-        ]
-      },
-      {
-        "name": "List correspondences of a declaration",
-        "request": {
-          "method": "GET",
-          "url": {
-            "raw": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/correspondences?page=1&limit=20",
-            "host": ["{{baseUrl}}"],
-            "path": ["api", "v1", "declarations", "{{declarationId}}", "correspondences"],
-            "query": [
-              { "key": "page", "value": "1" },
-              { "key": "limit", "value": "20" }
-            ]
-          }
-        }
-      },
-      {
-        "name": "Get correspondence",
-        "request": {
-          "method": "GET",
-          "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}"
-        }
-      },
-      {
-        "name": "Confirm correspondence",
-        "request": {
-          "method": "PATCH",
-          "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/confirm",
-          "description": "No body. Confirms that the matched declaration is the right one."
-        }
-      },
-      {
-        "name": "Reject correspondence",
-        "request": {
-          "method": "PATCH",
-          "url": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/reject",
-          "description": "No body. Says the matched declaration is not the right one."
-        }
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
       }
     ]
   },
-  {
-    "name": "Notifications",
-    "item": [
-      {
-        "name": "List my notifications",
-        "request": {
-          "method": "GET",
-          "url": {
-            "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=20",
-            "host": ["{{baseUrl}}"],
-            "path": ["api", "v1", "notifications"],
-            "query": [
-              { "key": "page", "value": "1" },
-              { "key": "limit", "value": "20" },
-              { "key": "unread", "value": "true", "disabled": true }
-            ]
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "email", "value": "sara.k@isamm.uma.tn" },
+    { "key": "password", "value": "Passw0rdDemo" },
+    { "key": "adminEmail", "value": "admin@isamm.uma.tn" },
+    { "key": "adminPassword", "value": "Passw0rdDemo" },
+    { "key": "accessToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "declarationId", "value": "" },
+    { "key": "reportId", "value": "" },
+    { "key": "correspondenceId", "value": "" },
+    { "key": "notificationId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "auth": { "type": "noauth" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "1. Register",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"new.student\",\n  \"email\": \"new.student@isamm.uma.tn\",\n  \"phone\": \"+21655000009\",\n  \"password\": \"Passw0rdDemo\",\n  \"confirmPassword\": \"Passw0rdDemo\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
           }
         },
-        "event": [
-          {
-            "listen": "test",
-            "script": {
-              "type": "text/javascript",
-              "exec": [
-                "pm.test('status is 200', () => pm.response.to.have.status(200));",
-                "const body = pm.response.json();",
-                "const list = body.notifications || body.items || body.data || [];",
-                "if (list.length) pm.collectionVariables.set('notificationId', list[0].id);"
+        {
+          "name": "2. Verify email",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/verify-email",
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.student@isamm.uma.tn\",\n  \"code\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Without AgentMail, the code is printed in the server console."
+          }
+        },
+        {
+          "name": "3. Resend verification",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/resend-verification",
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.student@isamm.uma.tn\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "4. Login",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Refresh",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "auth": { "type": "noauth" },
+            "description": "No body. Uses the refreshToken cookie set by login."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('accessToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "auth": { "type": "noauth" },
+            "description": "No body. Uses the refreshToken cookie."
+          }
+        },
+        {
+          "name": "7. Forgot password",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/forgot-password",
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "8. Reset password",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/reset-password",
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"123456\",\n  \"newPassword\": \"NewPassw0rd1\",\n  \"confirmPassword\": \"NewPassw0rd1\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/users/me"
+          }
+        },
+        {
+          "name": "Update my profile",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+21655000010\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Send at least one of username, email, phone. phone: null clears it."
+          }
+        },
+        {
+          "name": "Change my password",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/users/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewPassw0rd1\",\n  \"confirmPassword\": \"NewPassw0rd1\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Delete my account",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Declarations",
+      "item": [
+        {
+          "name": "Create declaration (JSON)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/declarations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Black Nike backpack\",\n  \"type\": \"lost\",\n  \"description\": \"Black Nike backpack with a red keychain, lost Monday afternoon.\",\n  \"date\": \"2026-10-20\",\n  \"location\": \"Main library, 2nd floor\",\n  \"category\": \"wallet_bag\",\n  \"attributes\": {\n    \"brand\": \"Nike\",\n    \"color\": \"black\"\n  },\n  \"privateInfo\": \"Physics notebook inside with my name on page 1\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('declarationId', pm.response.json().declaration.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create declaration (with picture)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/declarations",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Black Nike backpack", "type": "text" },
+                { "key": "type", "value": "lost", "type": "text" },
+                { "key": "description", "value": "Black Nike backpack with a red keychain, lost Monday afternoon.", "type": "text" },
+                { "key": "date", "value": "2026-10-20", "type": "text" },
+                { "key": "location", "value": "Main library, 2nd floor", "type": "text" },
+                { "key": "category", "value": "wallet_bag", "type": "text" },
+                { "key": "attributes", "value": "{\"brand\":\"Nike\",\"color\":\"black\"}", "type": "text" },
+                { "key": "privateInfo", "value": "Physics notebook inside with my name on page 1", "type": "text" },
+                { "key": "picture", "type": "file", "src": [] }
+              ]
+            },
+            "description": "Pick a jpeg, png or webp file (max 5 MB) in the picture field. attributes is a JSON string."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('declarationId', pm.response.json().declaration.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my declarations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/declarations/mine?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "declarations", "mine"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "type", "value": "lost", "disabled": true },
+                { "key": "status", "value": "pending", "disabled": true }
               ]
             }
           }
-        ]
-      },
-      {
-        "name": "Unread count",
-        "request": {
-          "method": "GET",
-          "url": "{{baseUrl}}/api/v1/notifications/unread-count"
+        },
+        {
+          "name": "Get declaration",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}"
+          }
+        },
+        {
+          "name": "Update declaration",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Black Nike backpack, red keychain\",\n  \"location\": \"Library, 1st floor\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Send at least one of title, description, date, location, category, attributes."
+          }
+        },
+        {
+          "name": "Change status",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"resolved\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Delete declaration",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}"
+          }
+        },
+        {
+          "name": "Get picture",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/picture"
+          }
+        },
+        {
+          "name": "Set or replace picture",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/picture",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "picture", "type": "file", "src": [] }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove picture",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/picture"
+          }
         }
-      },
-      {
-        "name": "Mark one as read",
-        "request": {
-          "method": "PATCH",
-          "url": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read"
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Login as admin",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Run this first. It stores the admin token in adminToken, which the other admin requests use."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminToken', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete user (reason required)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Repeated spam\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "users", "{{userId}}"]
+            },
+            "description": "Set userId to a regular user, not an admin. Admins cannot be deleted, and this is permanent."
+          }
+        },
+        {
+          "name": "List open reports",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/reports?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "reports"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Treat report",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"treated\", \"resolution\": \"Duplicate removed\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/reports/{{reportId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "reports", "{{reportId}}"]
+            }
+          }
+        },
+        {
+          "name": "Hide declaration",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Looks like a fake listing\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/declarations/{{declarationId}}/hide",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "declarations", "{{declarationId}}", "hide"]
+            }
+          }
+        },
+        {
+          "name": "Restore declaration",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Checked, it is fine\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/declarations/{{declarationId}}/restore",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "declarations", "{{declarationId}}", "restore"]
+            }
+          }
+        },
+        {
+          "name": "Delete declaration (reason required)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Offensive content\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/declarations/{{declarationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "declarations", "{{declarationId}}"]
+            }
+          }
+        },
+        {
+          "name": "Statistics dashboard",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/stats?from=2026-11-01T00:00:00Z&to=2026-11-10T00:00:00Z",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "stats"],
+              "query": [
+                { "key": "from", "value": "2026-11-01T00:00:00Z" },
+                { "key": "to", "value": "2026-11-10T00:00:00Z" }
+              ]
+            }
+          }
         }
-      },
-      {
-        "name": "Mark all as read",
-        "request": {
-          "method": "PATCH",
-          "url": "{{baseUrl}}/api/v1/notifications/read-all"
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Report a declaration",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"declarationId\": \"{{declarationId}}\", \"reason\": \"duplicate\", \"comment\": \"Same bag posted twice\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reports"]
+            },
+            "description": "Uses accessToken, so log in as a regular user (not the declaration owner) first."
+          }
         }
-      },
-      {
-        "name": "Delete notification",
-        "request": {
-          "method": "DELETE",
-          "url": "{{baseUrl}}/api/v1/notifications/{{notificationId}}"
+      ]
+    },
+    {
+      "name": "Matching",
+      "item": [
+        {
+          "name": "List my correspondences",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/correspondences/me?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "correspondences", "me"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "proposed", "disabled": true }
+              ]
+            },
+            "description": "Best score first. status can be proposed, accepted, refused, to_verify, resolved or closed."
+          }
+        },
+        {
+          "name": "List correspondences of a declaration",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/correspondences/declaration/{{declarationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "correspondences", "declaration", "{{declarationId}}"]
+            },
+            "description": "Owner or admin only. Sorted by global score, best first. Stores the first match id in correspondenceId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "if (items && items.length) pm.collectionVariables.set('correspondenceId', items[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rematch a declaration",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/correspondences/declaration/{{declarationId}}/rematch",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "correspondences", "declaration", "{{declarationId}}", "rematch"]
+            },
+            "description": "No body. Owner or admin only. Recomputes the matches of the declaration now."
+          }
+        },
+        {
+          "name": "Get correspondence (with history)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "correspondences", "{{correspondenceId}}"]
+            },
+            "description": "Score breakdown, history of events, and the other user's contact once both accepted."
+          }
+        },
+        {
+          "name": "Accept",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/accept",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "correspondences", "{{correspondenceId}}", "accept"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"optional, 500 characters max\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "The match becomes accepted when both sides accept. A declaration can have only one accepted match at a time."
+          }
+        },
+        {
+          "name": "Refuse",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/refuse",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "correspondences", "{{correspondenceId}}", "refuse"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"The keychain is different\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Ask for verification",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "correspondences", "{{correspondenceId}}", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Can you describe what is inside?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Confirm recovery (my side)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/correspondences/{{correspondenceId}}/recover",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "correspondences", "{{correspondenceId}}", "recover"]
+            },
+            "description": "No body. Each owner confirms for their own declaration. The match becomes resolved when both did."
+          }
         }
-      }
-    ]
-  }
-]
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List my notifications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "unreadOnly", "value": "true", "disabled": true }
+              ]
+            },
+            "description": "The response includes the number of unread notifications. Stores the first notification id in notificationId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "if (items && items.length) pm.collectionVariables.set('notificationId', items[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark notification as read",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "{{notificationId}}", "read"]
+            },
+            "description": "No body."
+          }
+        },
+        {
+          "name": "Mark all as read",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/read-all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "read-all"]
+            },
+            "description": "No body. Answers 204."
+          }
+        }
+      ]
+    }
+  ]
+}
