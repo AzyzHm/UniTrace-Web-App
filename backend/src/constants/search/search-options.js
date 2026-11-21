@@ -1,19 +1,3 @@
-/**
- * FICHIER : constants/search/search-options.js
- *
- * RÔLE
- *   Tous les réglages de la recherche, écrits UNE seule fois : statuts par défaut, statuts
- *   réservés aux admins, tris autorisés, longueurs du texte, tailles des listes, durée du cache.
- *   Évite les "nombres magiques" éparpillés dans le code.
- *
- * UTILISÉ PAR
- *   - validators/search/search.validator.js  (tris autorisés, longueur max de q)
- *   - services/search/search.service.js      (statuts, tris, longueur min de q, cache)
- *   - repositories/search/search.repository.js (statuts "actifs")
- *
- * UTILISE
- *   - constants/declarations/declaration-status.js (les noms des statuts)
- */
 import { DECLARATION_STATUSES as STATUS } from '../declarations/declaration-status.js';
 
 // Sans filtre "status", on ne cherche que les déclarations actives.

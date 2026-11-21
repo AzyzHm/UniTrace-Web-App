@@ -1,27 +1,3 @@
-/**
- * FICHIER : controllers/search/search.controller.js
- *
- * RÔLE
- *   "Serveur de salle" de la recherche : il prend la requête HTTP, la transmet au service, puis
- *   met la réponse en forme. Il ne contient AUCUNE règle métier (elles sont dans les services).
- *
- *   Six actions, une par route :
- *     searchDeclarations  GET    /search/declarations  recherche combinée
- *     getFilters          GET    /search/filters       valeurs des listes déroulantes
- *     saveSearch          POST   /search/saved         sauvegarder une recherche
- *     listSavedSearches   GET    /search/saved         lister mes recherches sauvegardées
- *     deleteSavedSearch   DELETE /search/saved/:id     supprimer une recherche sauvegardée
- *     getDeclaration      GET    /search/:id           lire UNE déclaration
- *
- * UTILISÉ PAR
- *   - routes/index.js (crée le controller) puis routes/search/search.routes.js (l'appelle)
- *
- * UTILISE
- *   - services/search/search.service.js (reçu en paramètre : searchService)
- *   - services/search/saved-search.service.js (reçu en paramètre : savedSearchService)
- *   - presenters/declarations/declaration.presenter.js (toPublicDeclarationResponse)
- *   - presenters/search/saved-search.presenter.js (toSavedSearchResponse)
- */
 import { toPublicDeclarationResponse } from '../../presenters/declarations/declaration.presenter.js';
 import { toSavedSearchResponse } from '../../presenters/search/saved-search.presenter.js';
 

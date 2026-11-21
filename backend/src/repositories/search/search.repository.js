@@ -1,20 +1,3 @@
-/**
- * FICHIER : repositories/search/search.repository.js
- *
- * RÔLE
- *   "Magasinier" de la recherche : il exécute les requêtes MongoDB et rien d'autre. Il ne
- *   décide d'aucune règle (statuts autorisés, droits...) : tout cela est dans le service.
- *   Cinq opérations : compter, lire une page, lire UNE déclaration par son id, lister les lieux
- *   les plus utilisés, idem pour les couleurs.
- *
- * UTILISÉ PAR
- *   - services/search/search.service.js
- *   - container/search.js (le crée)
- *
- * UTILISE
- *   - models/declarations/declaration.model.js (le modèle Mongoose Declaration)
- *   - constants/search/search-options.js (DEFAULT_SEARCH_STATUSES)
- */
 import { DEFAULT_SEARCH_STATUSES } from '../../constants/search/search-options.js';
 import { Declaration } from '../../models/declarations/declaration.model.js';
 

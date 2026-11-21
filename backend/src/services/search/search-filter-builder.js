@@ -1,19 +1,3 @@
-/**
- * FICHIER : services/search/search-filter-builder.js
- *
- * RÔLE
- *   "Traducteur" : transforme des critères simples ({ type: 'found', color: 'black', ... }) en
- *   filtre MongoDB. C'est une FONCTION PURE : aucun accès à la base, donc facile à tester
- *   (tests/unit/search/search-filter-builder.test.js).
- *   Tous les critères sont combinés avec ET (AND) : un résultat doit respecter chacun.
- *
- * UTILISÉ PAR
- *   - services/search/search.service.js
- *
- * UTILISE
- *   - constants/declarations/categories.js (pour connaître les catégories "sensibles")
- *   - constants/declarations/declaration-status.js
- */
 import { CATEGORIES } from '../../constants/declarations/categories.js';
 import { DECLARATION_STATUSES } from '../../constants/declarations/declaration-status.js';
 

@@ -1,23 +1,3 @@
-/**
- * FICHIER : validators/search/search.validator.js
- *
- * RÔLE
- *   Le "règlement" de la query de recherche : quels paramètres existent, de quel type, avec
- *   quelles valeurs. C'est un schéma Joi. Il applique aussi les valeurs par défaut
- *   (tri date_desc, page 1, limite 20).
- *
- * UTILISÉ PAR
- *   - routes/index.js (passe le schéma aux routes)
- *   - middlewares/search/validate-search-query.js (l'exécute)
- *   - validators/search/saved-search.validator.js (réutilise searchCriteriaFields)
- *
- * UTILISE
- *   - validators/declarations/declaration-fields.js (typeField, categoryField : mêmes règles
- *     que la création de déclaration, donc toujours synchronisées)
- *   - constants/common/pagination.js (page et limite : jamais recopiées)
- *   - constants/declarations/declaration-limits.js, declaration-status.js
- *   - constants/search/search-options.js (tris, longueur max de q)
- */
 import Joi from 'joi';
 import { PAGINATION } from '../../constants/common/pagination.js';
 import { DECLARATION_LIMITS as LIMITS } from '../../constants/declarations/declaration-limits.js';

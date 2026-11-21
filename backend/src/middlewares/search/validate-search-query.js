@@ -1,21 +1,3 @@
-/**
- * FICHIER : middlewares/search/validate-search-query.js
- *
- * RÔLE
- *   Contrôle d'entrée de la recherche : applique le schéma Joi à la query (?q=...&type=...) et
- *   répond 400 INVALID_QUERY si quelque chose ne va pas.
- *
- * POURQUOI NE PAS RÉUTILISER validate() ?
- *   Le validate() du projet répond toujours VALIDATION_ERROR. Le cahier des charges de la
- *   recherche demande un code propre : INVALID_QUERY. Ce fichier est donc une variante.
- *
- * UTILISÉ PAR
- *   - routes/search/search.routes.js (sur GET /search/declarations)
- *
- * UTILISE
- *   - exceptions/app-error.js (InvalidQueryError)
- *   - le schéma reçu en paramètre (validators/search/search.validator.js)
- */
 import { InvalidQueryError } from '../../exceptions/app-error.js';
 
 // Mêmes options que le validate() du projet :

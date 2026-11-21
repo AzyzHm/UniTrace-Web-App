@@ -36,10 +36,6 @@ function emailOf(req) {
     : '';
 }
 
-// [Binôme 2 - recherche] Clé de comptage = identifiant de l'utilisateur connecté.
-// Par défaut express-rate-limit compte par adresse IP ; sur le campus tous les étudiants
-// partagent la même IP, donc un gros utilisateur bloquerait les autres.
-// Repli sur l'IP si req.user n'existe pas (ne devrait pas arriver : requireAuth passe avant).
 function userKey(req) {
   return req.user?.id ? `user:${req.user.id}` : ipKeyGenerator(req.ip);
 }
@@ -66,9 +62,6 @@ export function createRateLimiters({ limits = {} } = {}) {
     // Counts every request, successful or not, because each one can send an email.
     emailSending: build(config.emailSending),
 
-    // [Binôme 2 - recherche] Deux limiteurs avec chacun leur compteur : les appels aux listes de
-    // filtres ne consomment donc jamais le quota des recherches. Dépassement : réponse 429 avec
-    // l'en-tête Retry-After. Utilisés dans routes/search/search.routes.js.
     search: build(config.search, { keyGenerator: userKey }),
     searchFilters: build(config.searchFilters, { keyGenerator: userKey }),
   };

@@ -1,22 +1,3 @@
-/**
- * FICHIER : models/search/saved-search.model.js
- *
- * RÔLE
- *   Le "plan" d'une recherche sauvegardée dans MongoDB (collection savedsearches). Une
- *   recherche sauvegardée = un propriétaire + un nom facultatif + les critères à surveiller.
- *   Elle sert à alerter l'utilisateur quand une NOUVELLE déclaration correspond à ces critères.
- *
- *   Aucune déclaration n'est copiée ici : on ne garde que les critères (la "question"), jamais
- *   les résultats (la "réponse"), qui changent tout le temps.
- *
- * UTILISÉ PAR
- *   - repositories/search/saved-search.repository.js
- *
- * UTILISE
- *   - constants/declarations/* (mêmes listes de types et de catégories que le modèle Declaration,
- *     donc toujours synchronisées), constants/declarations/declaration-limits.js
- *   - constants/search/saved-search-options.js
- */
 import mongoose from 'mongoose';
 import { CATEGORY_KEYS } from '../../constants/declarations/categories.js';
 import { DECLARATION_LIMITS as LIMITS } from '../../constants/declarations/declaration-limits.js';

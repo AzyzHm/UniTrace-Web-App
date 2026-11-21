@@ -108,11 +108,7 @@ declarationSchema.index({ type: 1, category: 1, status: 1, date: -1 });
 // Serves findPageByOwner: the owner filter and the sort on createdAt.
 declarationSchema.index({ owner: 1, createdAt: -1 });
 
-// [Binôme 2 - recherche] Index de recherche : texte (français), couleur, lieu, statut + date.
-// Aucun champ n'est ajouté ni modifié : ce sont seulement des index (accélérateurs de lecture).
-// La liste est définie dans declaration-search-indexes.js, que le script
-// scripts/add-search-indexes.js utilise aussi (pour les bases déjà existantes).
-// À FAIRE VALIDER par le Binôme 1 (propriétaire du modèle).
+// The search indexes are defined in a separate file so that the search service can inspect them 
 for (const { key, options } of SEARCH_INDEXES) {
   declarationSchema.index(key, options);
 }

@@ -76,9 +76,6 @@ export class RateLimitedError extends AppError {
   }
 }
 
-// [Binôme 2 - recherche] Trois erreurs propres à la recherche, toutes en HTTP 400 : le client
-// peut ainsi distinguer une mauvaise requête de recherche d'un mauvais corps de requête.
-// L'error-handler du projet les transforme en { error: { code, message, details } }.
 
 // Paramètre inconnu ou invalide (levée par middlewares/search/validate-search-query.js).
 export class InvalidQueryError extends AppError {
@@ -101,9 +98,7 @@ export class StatusForbiddenError extends AppError {
   }
 }
 
-// [Binôme 2 - recherche] L'utilisateur a déjà le maximum de recherches sauvegardées
-// (levée par services/search/saved-search.service.js). 409 : la requête est valide, mais l'état
-// actuel du compte ne permet pas d'en ajouter une de plus.
+//  L'utilisateur a déjà le maximum de recherches sauvegardées
 export class SavedSearchLimitError extends AppError {
   constructor(message = 'You have reached the maximum number of saved searches') {
     super(message, { statusCode: 409, code: 'SAVED_SEARCH_LIMIT' });

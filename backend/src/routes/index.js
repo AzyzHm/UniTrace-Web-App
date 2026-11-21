@@ -121,10 +121,6 @@ export function createApiRouter({
     );
   }
 
-  // [Binôme 2 - recherche] Monte /api/v1/search. Comme pour les autres groupes, il n'est monté
-  // que si ses dépendances existent (les deux services : recherche et recherches sauvegardées).
-  // C'est ici que le controller, les schémas Joi et les limiteurs sont donnés à la fabrique des
-  // routes (routes/search/search.routes.js).
   if (requireAuth && searchService && savedSearchService) {
     router.use(
       '/search',

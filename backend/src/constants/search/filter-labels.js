@@ -1,28 +1,3 @@
-/**
- * FICHIER : constants/search/filter-labels.js
- *
- * RÔLE
- *   Dictionnaire français des listes déroulantes du formulaire de recherche.
- *   Dans la base on stocke des clés techniques (ex. "phone", "pending") ; l'étudiant, lui, doit
- *   lire "Téléphone", "En attente". Ce fichier fait la traduction clé -> libellé.
- *
- * POURQUOI ICI
- *   Le front ne contient aucun libellé en dur : il les reçoit via GET /api/v1/search/filters.
- *   Changer un libellé se fait donc à un seul endroit.
- *
- * UTILISÉ PAR
- *   - services/search/search.service.js (méthode buildFilters)
- *   - tests/unit/search/filter-labels.test.js (vérifie qu'aucune clé n'est oubliée)
- *
- * UTILISE
- *   Rien (fichier de données pur).
- *
- * ATTENTION
- *   Si on ajoute une catégorie ou un statut dans constants/declarations/, il faut ajouter son
- *   libellé ici, sinon le test filter-labels.test.js échoue (c'est voulu, pour ne pas afficher
- *   "undefined" dans une liste déroulante).
- */
-
 // Types de déclaration : clé stockée en base -> libellé affiché.
 export const TYPE_LABELS = Object.freeze({
   lost: 'Perdu',

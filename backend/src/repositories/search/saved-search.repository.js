@@ -1,19 +1,3 @@
-/**
- * FICHIER : repositories/search/saved-search.repository.js
- *
- * RÔLE
- *   "Magasinier" des recherches sauvegardées : il exécute les requêtes MongoDB et rien d'autre.
- *   Les règles (limite par utilisateur, droits) sont dans le service.
- *   Presque toutes les opérations prennent le propriétaire (`owner`) en paramètre et le mettent
- *   dans le filtre : il est impossible, même par erreur, de lire ou d'effacer l'alerte d'autrui.
- *
- * UTILISÉ PAR
- *   - services/search/saved-search.service.js
- *   - container/search.js (le crée)
- *
- * UTILISE
- *   - models/search/saved-search.model.js
- */
 import { SavedSearch } from '../../models/search/saved-search.model.js';
 
 // `model` est injectable (par défaut le vrai modèle) : en test on peut donner un faux modèle.

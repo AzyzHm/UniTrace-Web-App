@@ -1,24 +1,3 @@
-/**
- * FICHIER : container/search.js
- *
- * RÔLE
- *   "Assembleur" du module recherche. Au démarrage de l'application, il fabrique le repository
- *   et le service de recherche et les branche entre eux (injection de dépendances). Aucun autre
- *   fichier ne crée ses propres dépendances : tout passe par le container.
- *
- *   Avantage : dans un test on peut remplacer n'importe quelle pièce par un faux
- *   (ex. createContainer({ overrides: { searchRepository: fauxRepo } })).
- *
- * UTILISÉ PAR
- *   - container/index.js (appelle buildSearch après common, auth, users et declarations)
- *
- * UTILISE
- *   - repositories/search/search.repository.js (createSearchRepository)
- *   - repositories/search/saved-search.repository.js (createSavedSearchRepository)
- *   - services/search/search.service.js (createSearchService)
- *   - services/search/saved-search.service.js (createSavedSearchService)
- *   - `common` (créé dans container/common.js) : eventBus et clock
- */
 import { createSavedSearchRepository } from '../repositories/search/saved-search.repository.js';
 import { createSearchRepository } from '../repositories/search/search.repository.js';
 import { createSavedSearchService } from '../services/search/saved-search.service.js';

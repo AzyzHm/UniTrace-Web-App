@@ -1,25 +1,3 @@
-/**
- * FICHIER : models/declarations/declaration-search-indexes.js
- *
- * RÔLE
- *   Liste des 4 index MongoDB ajoutés pour la recherche. Un index fonctionne comme l'index d'un
- *   livre : MongoDB retrouve les documents sans lire toute la collection (indispensable avec
- *   10 000 déclarations ou plus).
- *
- * POURQUOI UN FICHIER À PART
- *   La liste est définie une seule fois et lue à deux endroits. Le modèle et le script de
- *   migration ne peuvent donc jamais se contredire.
- *
- * UTILISÉ PAR
- *   - models/declarations/declaration.model.js (enregistre les index pour une base neuve)
- *   - scripts/add-search-indexes.js (crée les index sur une base déjà existante)
- *
- * UTILISE
- *   Rien (données pures).
- *
- * À FAIRE RELIRE
- *   Le modèle Declaration appartient au Binôme 1 : ces index sont à valider avec lui.
- */
 export const SEARCH_INDEXES = Object.freeze([
   {
     // 1. Recherche par mots (paramètre q). Langue française : "sacs" retrouve "sac".

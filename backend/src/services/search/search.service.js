@@ -1,28 +1,3 @@
-/**
- * FICHIER : services/search/search.service.js
- *
- * RÔLE
- *   "Chef de cuisine" de la recherche : toutes les RÈGLES MÉTIER sont ici.
- *     - valeurs par défaut (statuts pending et matched, tri par date décroissante)
- *     - droits selon le rôle (hidden et deleted réservés aux admins)
- *     - texte trop court ignoré, tri "pertinence" refusé sans texte
- *     - pagination (page, limite, totalPages, hasNext, hasPrev)
- *     - repli du filtre "lieu" (exact, puis sans casse ni accents)
- *     - cache de 5 minutes des listes de filtres, vidé quand une déclaration change
- *     - lecture d'UNE déclaration (GET /search/:id) : supprimée ou cachée = introuvable, sauf admin
- *   Pour lire la base il demande au repository ; pour fabriquer le filtre MongoDB il appelle le builder.
- *
- * UTILISÉ PAR
- *   - controllers/search/search.controller.js
- *   - container/search.js (le crée et lui donne ses dépendances)
- *
- * UTILISE
- *   - repositories/search/search.repository.js (reçu : searchRepository)
- *   - eventBus (reçu) : pour écouter les événements et vider le cache
- *   - services/search/search-filter-builder.js (buildSearchFilter)
- *   - constants/search/* (options, libellés), constants/declarations/*, constants/common/roles.js
- *   - exceptions/app-error.js (RelevanceRequiresQueryError, StatusForbiddenError)
- */
 import { EVENTS } from '../../constants/common/events.js';
 import { DECLARATION_STATUS_VALUES } from '../../constants/declarations/declaration-status.js';
 import { CATEGORY_KEYS } from '../../constants/declarations/categories.js';

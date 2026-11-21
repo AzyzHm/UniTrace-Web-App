@@ -1,29 +1,3 @@
-/**
- * FICHIER : services/search/saved-search.service.js
- *
- * RÔLE
- *   "Chef de cuisine" des recherches sauvegardées : les RÈGLES MÉTIER sont ici.
- *     - un utilisateur ne peut pas dépasser 20 recherches sauvegardées (409 SAVED_SEARCH_LIMIT) ;
- *     - il ne voit et ne supprime que les SIENNES ;
- *     - l'alerte d'un autre utilisateur répond 404 (jamais 403 : on ne révèle pas qu'elle existe) ;
- *     - quand un compte est supprimé, ses recherches sauvegardées le sont aussi (événement
- *       user.deleted), sinon on garderait des données d'une personne qui est partie.
- *   Pour lire/écrire la base il demande au repository.
- *
- *   Ce service STOCKE les critères. L'envoi de l'alerte (comparer chaque nouvelle déclaration à
- *   ces critères, puis prévenir la personne) n'est pas encore branché : il faudra un service
- *   d'envoi (email ou notification) et l'événement declaration.created.
- *
- * UTILISÉ PAR
- *   - controllers/search/search.controller.js
- *   - container/search.js (le crée et lui donne ses dépendances)
- *
- * UTILISE
- *   - repositories/search/saved-search.repository.js (reçu : savedSearchRepository)
- *   - eventBus (reçu) : pour écouter user.deleted
- *   - constants/search/saved-search-options.js, constants/common/events.js
- *   - exceptions/app-error.js (SavedSearchLimitError, NotFoundError)
- */
 import { EVENTS } from '../../constants/common/events.js';
 import { MAX_SAVED_SEARCHES_PER_USER } from '../../constants/search/saved-search-options.js';
 import { NotFoundError, SavedSearchLimitError } from '../../exceptions/app-error.js';

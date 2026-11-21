@@ -1,26 +1,3 @@
-/**
- * FICHIER : validators/search/saved-search.validator.js
- *
- * RÔLE
- *   Le "règlement" du corps de POST /search/saved : quels critères on peut sauvegarder et avec
- *   quelles valeurs. C'est un schéma Joi.
- *
- *   Différences avec la query de recherche (search.validator.js) :
- *     - pas de status, sort, page, limit : ils décrivent l'affichage, pas ce qu'on surveille ;
- *     - AU MOINS UN critère est obligatoire (sinon l'alerte se déclencherait pour TOUTE nouvelle
- *       déclaration, ce qui n'a aucun sens) ;
- *     - q doit faire au moins 2 caractères : la recherche ignore un texte plus court, une alerte
- *       sur un texte ignoré ne surveillerait rien. Ici on refuse clairement (400) ;
- *     - un champ inconnu est refusé (le middleware validate() interdit les champs en trop).
- *
- * UTILISÉ PAR
- *   - routes/index.js (passe le schéma aux routes)
- *   - middlewares/search/validate-saved-search.js (l'exécute)
- *
- * UTILISE
- *   - validators/search/search.validator.js (searchCriteriaFields : mêmes règles que la recherche)
- *   - constants/search/saved-search-options.js, constants/search/search-options.js
- */
 import Joi from 'joi';
 import {
   SAVED_SEARCH_CRITERIA,
