@@ -2,6 +2,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import { setupSwagger } from './docs/swagger.js';
 import { notFoundHandler } from './middlewares/common/not-found.js';
 import { createErrorHandler } from './middlewares/common/error-handler.js';
 import { createApiRouter } from './routes/index.js';
@@ -44,6 +45,9 @@ export function createApp({
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
   });
+
+  // Also outside /api/v1, so the API docs are never throttled by the global rate limiter.
+  setupSwagger(app);
 
   app.use(
     '/api/v1',
