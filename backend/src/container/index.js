@@ -3,6 +3,7 @@ import { buildAuth } from './auth.js';
 import { buildCommon } from './common.js';
 import { buildDeclarations } from './declarations.js';
 import { buildUsers } from './users.js';
+import { buildMatching } from './matching.js';
 
 // Default logger so the container can be built in tests without one.
 const silentLogger = { error() {}, warn() {}, info() {}, debug() {} };
@@ -18,6 +19,7 @@ export function createContainer({ config, logger = silentLogger, clock, override
   const auth = buildAuth({ config, common, use });
   const users = buildUsers({ common, auth });
   const declarations = buildDeclarations({ config, common, use });
+  const matching = buildMatching({ common, declarations, use });
   const admin = buildAdmin({ common, auth, declarations, use });
 
   // Frozen, and limited to what the app and the tests need: the services, the auth middleware
@@ -27,8 +29,10 @@ export function createContainer({ config, logger = silentLogger, clock, override
       ...auth.services,
       ...users.services,
       ...declarations.services,
+      ...matching.services,
       ...admin.services,
     },
+    embeddingService: matching.embeddingService,
     requireAuth: auth.requireAuth,
 
     eventBus: common.eventBus,
