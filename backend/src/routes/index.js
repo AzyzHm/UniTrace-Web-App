@@ -1,4 +1,8 @@
 import { Router } from 'express';
+import { createAdminUserController } from '../controllers/admin/admin-user.controller.js';
+import { createModerationController } from '../controllers/admin/moderation.controller.js';
+import { createReportController } from '../controllers/admin/report.controller.js';
+import { createStatsController } from '../controllers/admin/stats.controller.js';
 import { createAuthController } from '../controllers/auth/auth.controller.js';
 import { createDeclarationController } from '../controllers/declarations/declaration.controller.js';
 import { createCorrespondenceController } from '../controllers/matching/correspondence.controller.js';
@@ -19,9 +23,25 @@ import {
   verifyEmailSchema,
 } from '../validators/auth/auth.validator.js';
 import {
+  deleteUserBodySchema,
+  listUsersQuerySchema,
+  userIdParamsSchema,
+} from '../validators/admin/admin.validator.js';
+import {
+  createReportBodySchema,
+  listReportsQuerySchema,
+  reportIdParamsSchema,
+  treatReportBodySchema,
+} from '../validators/admin/report.validator.js';
+import {
+  declarationIdParamsSchema,
+  moderationBodySchema,
+} from '../validators/admin/moderation.validator.js';
+import { statsQuerySchema } from '../validators/admin/stats.validator.js';
+import {
   changeDeclarationStatusSchema,
   createDeclarationSchema,
-  declarationIdParamsSchema,
+  declarationIdParamsSchema as declarationRouteIdParamsSchema,
   listMyDeclarationsQuerySchema,
   pictureBodySchema,
   updateDeclarationSchema,
@@ -41,10 +61,12 @@ import {
   createUpdateProfileSchema,
   deleteAccountSchema,
 } from '../validators/users/user.validator.js';
+import { createAdminRoutes } from './admin/admin.routes.js';
 import { createAuthRoutes } from './auth/auth.routes.js';
 import { createDeclarationRoutes } from './declarations/declaration.routes.js';
 import { createCorrespondenceRoutes } from './matching/correspondence.routes.js';
 import { createNotificationRoutes } from './notifications/notification.routes.js';
+import { createReportRoutes } from './reports/report.routes.js';
 import { createUserRoutes } from './users/user.routes.js';
 
 export function createApiRouter({
@@ -64,6 +86,10 @@ export function createApiRouter({
     declarationService,
     correspondenceService,
     notificationService,
+    adminUserService,
+    reportService,
+    moderationService,
+    statsService,
   } = services;
 
   const router = Router();
@@ -120,7 +146,7 @@ export function createApiRouter({
         requireAuth,
         createDeclarationSchema,
         listMyDeclarationsQuerySchema,
-        declarationIdParamsSchema,
+        declarationIdParamsSchema: declarationRouteIdParamsSchema,
         updateDeclarationSchema,
         changeDeclarationStatusSchema,
         pictureBodySchema,
@@ -153,6 +179,39 @@ export function createApiRouter({
         requireAuth,
         notificationIdParamsSchema,
         listNotificationsQuerySchema,
+  if (requireAuth && reportService) {
+    router.use(
+      '/reports',
+      createReportRoutes({
+        reportController: createReportController({ reportService }),
+        requireAuth,
+        createReportBodySchema,
+      }),
+    );
+  }
+
+  if (requireAuth && adminUserService && reportService && moderationService && statsService) {
+    router.use(
+      '/admin',
+      createAdminRoutes({
+        controllers: {
+          adminUser: createAdminUserController({ adminUserService }),
+          report: createReportController({ reportService }),
+          moderation: createModerationController({ moderationService }),
+          stats: createStatsController({ statsService }),
+        },
+        requireAuth,
+        schemas: {
+          listUsersQuery: listUsersQuerySchema,
+          userIdParams: userIdParamsSchema,
+          deleteUserBody: deleteUserBodySchema,
+          listReportsQuery: listReportsQuerySchema,
+          reportIdParams: reportIdParamsSchema,
+          treatReportBody: treatReportBodySchema,
+          declarationIdParams: declarationIdParamsSchema,
+          moderationBody: moderationBodySchema,
+          statsQuery: statsQuerySchema,
+        },
       }),
     );
   }

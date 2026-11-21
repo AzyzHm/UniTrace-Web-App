@@ -1,3 +1,4 @@
+import { buildAdmin } from './admin.js';
 import { buildAuth } from './auth.js';
 import { buildCommon } from './common.js';
 import { buildDeclarations } from './declarations.js';
@@ -12,13 +13,15 @@ export function createContainer({ config, logger = silentLogger, clock, override
   // service, repository, hasher...) and the real factory is never called for it.
   const use = (name, make) => overrides[name] ?? make();
 
-  // The order matters: auth and declarations need what common built, and users needs auth's
-  // repositories and services.
+  // The order matters: auth and declarations need what common built, users needs auth's
+  // repositories and services, and admin needs all of them.
   const common = buildCommon({ config, logger, clock, use });
   const auth = buildAuth({ config, common, use });
   const users = buildUsers({ common, auth });
   const declarations = buildDeclarations({ config, common, use });
   const matching = buildMatching({ common, declarations, use });
+  const admin = buildAdmin({ common, auth, declarations, use });
+
   // Frozen, and limited to what the app and the tests need: the services, the auth middleware
   // and a few shared objects.
   return Object.freeze({
@@ -27,8 +30,10 @@ export function createContainer({ config, logger = silentLogger, clock, override
       ...users.services,
       ...declarations.services,
       ...matching.services,
+       ...admin.services,
     },
-    embeddingService: matching.embeddingService,
+    embeddingService: matching.embeddingService
+    },
     requireAuth: auth.requireAuth,
 
     eventBus: common.eventBus,
