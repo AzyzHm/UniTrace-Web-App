@@ -1,0 +1,1253 @@
+paths:
+  /api/v1/declarations:
+    post:
+      tags: [Declarations]
+      operationId: createDeclaration
+      summary: Create a declaration (lost or found)
+      description: |
+        Creates a declaration owned by the connected user. Send **JSON**, or **multipart/form-data**
+        to attach a picture in the same request.
+
+        **Set by the server, never by the client**
+        - `owner` comes from the access token.
+        - `status` is always `pending`.
+        - Sending `status`, `owner`, `picture` (in JSON) or any unknown field is rejected with a
+          400, it is never silently ignored.
+
+        **Rules**
+        - `title` 3 to 100, `description` 10 to 1000, `location` 2 to 150 characters (free text,
+          trimmed).
+        - `date` is the day the item was lost or found. It must be a real calendar day and **cannot
+          be in the future**.
+        - `attributes` is an optional flat object of short strings (at most 10 keys, values up to
+          100 characters, keys like `brand` or `color`). In a multipart request it is sent as a
+          **JSON string**.
+        - `privateInfo` (up to 500 characters) is a hidden detail that only proves ownership, for
+          example "Physics notebook inside with my name on page 1". It is **never returned to
+          other users**, only to the owner and to admins. It cannot be edited later.
+        - `picture`: jpeg, png or webp, at most 5 MB. The real type is detected from the file
+          content, the file name and the `Content-Type` sent by the client are ignored.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeclarationRequest'
+            example:
+              title: Black Nike backpack
+              type: lost
+              description: Black Nike backpack with a red keychain, lost Monday afternoon.
+              date: '2026-11-18'
+              location: Main library, 2nd floor
+              category: wallet_bag
+              attributes:
+                brand: Nike
+                color: black
+              privateInfo: Physics notebook inside with my name on page 1
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateDeclarationMultipart'
+      responses:
+        '201':
+          description: Declaration created with status `pending`. Owner view, including `privateInfo`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationEnvelope'
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. A field is missing or invalid, a server-controlled field was
+            sent, or the picture is not an accepted image.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingFields:
+                  summary: Required fields missing
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: title
+                          message: title is required
+                        - field: category
+                          message: category is required
+                futureDate:
+                  summary: Date in the future
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: date
+                          message: Date cannot be in the future
+                statusRejected:
+                  summary: Server-controlled field sent (status)
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: status
+                          message: status is not allowed
+                badAttributes:
+                  summary: Attributes is not valid JSON (multipart)
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: attributes
+                          message: Attributes must be a valid JSON object
+                badPicture:
+                  summary: Picture is not a jpeg, png or webp image
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: picture
+                          message: Picture must be a jpeg, png or webp image
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/declarations/mine:
+    get:
+      tags: [Declarations]
+      operationId: listMyDeclarations
+      summary: List my declarations
+      description: |
+        The connected user's own declarations, **newest first**, paginated. Returns a light
+        summary of each one (no `description`, `attributes` or `privateInfo`) to keep pages small:
+        call `GET /api/v1/declarations/{id}` for the full object.
+
+        `deleted` declarations are never listed. The list is paginated server-side, a page never
+        holds more than 50 items.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number, starting at 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: type
+          in: query
+          description: Keep only lost or only found declarations.
+          schema:
+            $ref: '#/components/schemas/DeclarationType'
+        - name: status
+          in: query
+          description: Keep only one status. `deleted` is not accepted.
+          schema:
+            type: string
+            enum: [pending, matched, resolved, expired, hidden]
+      responses:
+        '200':
+          description: One page of summaries. An empty list is a normal 200, not an error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationListResponse'
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. Invalid or unknown query parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                limitTooHigh:
+                  summary: limit over 50
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: limit
+                          message: limit must be less than or equal to 50
+                deletedStatus:
+                  summary: status=deleted is not accepted
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: status
+                          message: status must be one of [pending, matched, resolved, expired, hidden]
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/declarations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+
+    get:
+      tags: [Declarations]
+      operationId: getDeclaration
+      summary: Get one declaration
+      description: |
+        The response adapts to **who is asking**. The server decides, the client cannot ask for
+        more.
+
+        | Viewer | `declaration` | Notes |
+        |---|---|---|
+        | Owner | Owner view, with `privateInfo` | `isOwner: true`, `allowedTransitions` filled |
+        | Admin | Owner view, with `privateInfo` | `isOwner: false` |
+        | Any other user | **Public view**: no `privateInfo`, no `updatedAt`, no owner identity | `allowedTransitions: []` |
+
+        - For a `student_card_id` declaration, other users get `picture: null`.
+        - `ownerDeleted` is `true` when the owner's account was deleted, so the interface can show a
+          "deleted user" label. The owner's identity is never exposed.
+        - `allowedTransitions` lists the statuses the viewer can move this declaration to with
+          `PATCH /{id}/status`, so the interface only shows buttons that will work.
+        - A `hidden` declaration (moderation) is **404 for other users**, as if it did not exist.
+          A `deleted` declaration is 404 for everyone.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The declaration, in the view that matches the viewer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationDetailsResponse'
+              examples:
+                asOwner:
+                  summary: Owner view
+                  value:
+                    declaration:
+                      id: '665f2a7b9b1d8a0012a4c801'
+                      title: Black Nike backpack
+                      type: lost
+                      description: Black Nike backpack with a red keychain, lost Monday afternoon.
+                      category: wallet_bag
+                      attributes:
+                        brand: Nike
+                        color: black
+                      privateInfo: Physics notebook inside with my name on page 1
+                      picture: /api/v1/declarations/665f2a7b9b1d8a0012a4c801/picture
+                      status: pending
+                      date: '2026-11-18T00:00:00.000Z'
+                      location: Main library, 2nd floor
+                      createdAt: '2026-11-19T08:30:00.000Z'
+                      updatedAt: '2026-11-19T08:30:00.000Z'
+                    isOwner: true
+                    ownerDeleted: false
+                    allowedTransitions: [resolved, deleted]
+                asOtherUser:
+                  summary: Public view (another user)
+                  value:
+                    declaration:
+                      id: '665f2a7b9b1d8a0012a4c801'
+                      title: Black Nike backpack
+                      type: lost
+                      description: Black Nike backpack with a red keychain, lost Monday afternoon.
+                      category: wallet_bag
+                      attributes:
+                        brand: Nike
+                        color: black
+                      picture: /api/v1/declarations/665f2a7b9b1d8a0012a4c801/picture
+                      status: pending
+                      date: '2026-11-18T00:00:00.000Z'
+                      location: Main library, 2nd floor
+                      createdAt: '2026-11-19T08:30:00.000Z'
+                    isOwner: false
+                    ownerDeleted: false
+                    allowedTransitions: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/DeclarationNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Declarations]
+      operationId: updateDeclaration
+      summary: Edit a declaration
+      description: |
+        Partial update: send only the fields to change, at least one.
+
+        **Who and when**
+        - The **owner** can edit while the declaration is `pending` or `expired`. Once it is
+          `matched`, `resolved` or `hidden`, only an admin can edit it.
+        - An **admin** can edit any declaration that is not deleted.
+        - Anybody else gets 403 (or 404 if the declaration is hidden).
+
+        **Not editable here** (rejected with a 400 as unknown fields): `type`, `privateInfo`,
+        `status`, `owner`, `picture`. The status changes through `PATCH /{id}/status`, the picture
+        through `PUT` and `DELETE /{id}/picture`.
+
+        Sending values equal to the stored ones changes nothing: the call succeeds without a write.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeclarationRequest'
+            example:
+              title: Black Nike backpack, red keychain
+              location: Library, 1st floor
+      responses:
+        '200':
+          description: Declaration updated. Owner view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationEnvelope'
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. Invalid id, empty body, invalid value, or a field that cannot
+            be edited.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyBody:
+                  summary: Nothing to update
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: ''
+                          message: At least one field to update is required
+                typeRejected:
+                  summary: Field that cannot be edited (type)
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: type
+                          message: type is not allowed
+                invalidId:
+                  summary: Malformed id
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: id
+                          message: id must be a valid declaration id
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/CannotEditDeclaration'
+        '404':
+          $ref: '#/components/responses/DeclarationNotFound'
+        '409':
+          $ref: '#/components/responses/DeclarationChangedMeanwhile'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Declarations]
+      operationId: deleteDeclaration
+      summary: Delete a declaration (soft delete)
+      description: |
+        Moves the declaration to the `deleted` status. This is the same operation as
+        `PATCH /{id}/status` with `{ "status": "deleted" }`, with the same rules.
+
+        **Effects:** `privateInfo` is erased and the picture file is removed from the server. The
+        record is kept (soft delete) but disappears from every read: all routes answer 404 for it.
+        The `deleted` status is final.
+
+        **Who and when**
+        - The **owner** can delete a `pending`, `matched` or `expired` declaration.
+        - A `resolved` or `hidden` declaration can only be deleted by an **admin** (403 for the
+          owner): a resolved declaration is history, a hidden one is under moderation.
+        - An **admin** can delete any declaration that is not already deleted.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Declaration deleted. No body.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: |
+            **403 `FORBIDDEN`**. The account is suspended, the user is not the owner, or the
+            declaration is `resolved` or `hidden` and only an admin can delete it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                suspended:
+                  summary: Account suspended
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Your account is suspended
+                      details: []
+                notOwner:
+                  summary: Not the owner
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: You are not allowed to change the status of this declaration
+                      details: []
+                adminOnly:
+                  summary: Resolved declaration (admin only)
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Only an admin can change a resolved declaration to deleted
+                      details: []
+        '404':
+          $ref: '#/components/responses/DeclarationNotFound'
+        '409':
+          $ref: '#/components/responses/DeclarationChangedMeanwhile'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/declarations/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+
+    patch:
+      tags: [Declarations]
+      operationId: changeDeclarationStatus
+      summary: Change the status of a declaration
+      description: |
+        Moves the declaration to another status. **One transition table** decides, for every route
+        and every actor. Anything not in the table is refused, never allowed by default.
+
+        | From | To | Who can do it |
+        |---|---|---|
+        | `pending` | `resolved`, `deleted` | owner, admin |
+        | `pending` | `hidden` | admin |
+        | `pending` | `matched`, `expired` | system only (never through the API) |
+        | `matched` | `resolved`, `deleted` | owner, admin |
+        | `matched` | `hidden` | admin |
+        | `matched` | `pending` | system only (never through the API) |
+        | `resolved` | `pending`, `hidden`, `deleted` | admin only (resolved is history) |
+        | `expired` | `pending` (renew), `deleted` | owner, admin |
+        | `hidden` | `pending`, `matched`, `resolved`, `deleted` | admin only |
+        | `deleted` | nothing | final |
+
+        A `hidden` declaration can only be restored to the status it had **before** being hidden
+        (or deleted), so hiding then restoring never changes its state.
+
+        **Choosing the right error**
+        - **403**: the actor is not allowed, but an admin could do it (or the actor is not the owner).
+        - **409**: nobody can do it through the API (same status, system-only move, or restore rule).
+
+        Moving to `deleted` has the effects described in `DELETE /{id}`. Use
+        `allowedTransitions` from `GET /{id}` to know which moves will succeed.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeStatusRequest'
+            example:
+              status: resolved
+      responses:
+        '200':
+          description: Status changed. Owner view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationEnvelope'
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. Invalid id, missing status, or a value that is not a known
+            status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unknownStatus:
+                  summary: Unknown status
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: status
+                          message: status must be one of [pending, matched, resolved, expired, hidden, deleted]
+                missingStatus:
+                  summary: Status missing
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: status
+                          message: status is required
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: |
+            **403 `FORBIDDEN`**. The account is suspended, the user is not the owner, or the move is
+            reserved to admins.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                suspended:
+                  summary: Account suspended
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Your account is suspended
+                      details: []
+                notOwner:
+                  summary: Not the owner
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: You are not allowed to change the status of this declaration
+                      details: []
+                adminOnly:
+                  summary: Owner tries an admin-only move
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Only an admin can change a resolved declaration to pending
+                      details: []
+        '404':
+          $ref: '#/components/responses/DeclarationNotFound'
+        '409':
+          description: |
+            **409 `CONFLICT`**. The move is impossible for everybody through the API, or the
+            declaration changed at the same moment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                sameStatus:
+                  summary: Already in this status
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: The declaration is already resolved
+                      details: []
+                systemOnly:
+                  summary: System-only transition
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: A pending declaration cannot become matched
+                      details: []
+                restoreRule:
+                  summary: Hidden declaration restored to the wrong status
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: A hidden declaration can only be restored to pending
+                      details: []
+                concurrentChange:
+                  summary: Changed by someone else at the same time
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: The declaration changed in the meantime, please reload it
+                      details: []
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/declarations/{id}/picture:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+
+    get:
+      tags: [Declaration pictures]
+      operationId: getDeclarationPicture
+      summary: Download the picture of a declaration
+      description: |
+        Streams the image. Pictures are **not public files**: they are served by this route, which
+        applies the same visibility rules as the declaration. That is why the `picture` field of a
+        declaration holds this route's URL and never a file name. Use an authenticated request
+        (for example `fetch` with the Bearer token, then display the blob) rather than a plain
+        `<img src>`, which cannot send the header.
+
+        Every refusal is the **same 404**, so a picture cannot be probed for:
+        - the declaration does not exist or is deleted, or it has no picture;
+        - the declaration is `hidden` and the viewer is not the owner or an admin;
+        - the category is `student_card_id` and the viewer is not the owner or an admin.
+
+        The response is sent as the detected image type with `X-Content-Type-Options: nosniff` and
+        `Cache-Control: private, no-cache`, so a hidden or deleted declaration stops serving its
+        picture.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The image file.
+          headers:
+            X-Content-Type-Options:
+              description: Always `nosniff`.
+              schema:
+                type: string
+                example: nosniff
+            Cache-Control:
+              description: Always `private, no-cache`.
+              schema:
+                type: string
+                example: private, no-cache
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          description: |
+            **404 `NOT_FOUND`**. No picture the viewer is allowed to see (see the cases above).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: NOT_FOUND
+                  message: Picture not found
+                  details: []
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Declaration pictures]
+      operationId: setDeclarationPicture
+      summary: Add or replace the picture
+      description: |
+        Sets the picture of an existing declaration. The request is `multipart/form-data` with the
+        file in the `picture` field and **nothing else**: any extra text field is rejected.
+
+        - jpeg, png or webp, at most 5 MB. The real type is detected from the file content.
+        - The previous file is removed from the server once the new one is saved.
+        - Same permissions as editing: the owner while `pending` or `expired`, an admin at any
+          time.
+
+        If the validation fails, nothing is saved.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PictureUpload'
+      responses:
+        '200':
+          description: Picture saved. Owner view, with the new `picture` URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationEnvelope'
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. Invalid id, no file, a file that is not an accepted image, an
+            unexpected field, or more than one file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noFile:
+                  summary: No picture sent
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: picture
+                          message: A picture is required
+                notAnImage:
+                  summary: Not a jpeg, png or webp image
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: picture
+                          message: Picture must be a jpeg, png or webp image
+                wrongFieldName:
+                  summary: File sent in the wrong field
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: photo
+                          message: Unexpected file, the picture goes in the "picture" field
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/CannotEditDeclaration'
+        '404':
+          $ref: '#/components/responses/DeclarationNotFound'
+        '409':
+          $ref: '#/components/responses/DeclarationChangedMeanwhile'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Declaration pictures]
+      operationId: removeDeclarationPicture
+      summary: Remove the picture
+      description: |
+        Removes the picture and deletes the file from the server. Idempotent: if the declaration has
+        no picture, the call succeeds and changes nothing.
+
+        Same permissions as editing: the owner while `pending` or `expired`, an admin at any time.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 'Picture removed. Owner view, with `picture: null`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/CannotEditDeclaration'
+        '404':
+          $ref: '#/components/responses/DeclarationNotFound'
+        '409':
+          $ref: '#/components/responses/DeclarationChangedMeanwhile'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    DeclarationId:
+      name: id
+      in: path
+      required: true
+      description: Declaration id (24 hexadecimal characters). A malformed id is a 400, not a 404.
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+        example: '665f2a7b9b1d8a0012a4c801'
+
+  responses:
+    DeclarationNotFound:
+      description: |
+        **404 `NOT_FOUND`**. The declaration does not exist, is `deleted`, or is `hidden` and the
+        viewer is neither the owner nor an admin. These cases are deliberately indistinguishable,
+        so a user cannot learn that a hidden declaration exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Declaration not found
+              details: []
+
+    CannotEditDeclaration:
+      description: |
+        **403 `FORBIDDEN`**. The account is suspended, the user is not the owner (nor an admin), or
+        the declaration is no longer editable by its owner (`matched`, `resolved` or `hidden`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            suspended:
+              summary: Account suspended
+              value:
+                error:
+                  code: FORBIDDEN
+                  message: Your account is suspended
+                  details: []
+            notOwner:
+              summary: Not the owner
+              value:
+                error:
+                  code: FORBIDDEN
+                  message: You are not allowed to edit this declaration
+                  details: []
+            notEditable:
+              summary: Status does not allow owner edits
+              value:
+                error:
+                  code: FORBIDDEN
+                  message: A matched declaration cannot be edited
+                  details: []
+
+    DeclarationChangedMeanwhile:
+      description: |
+        **409 `CONFLICT`**. Someone else changed the declaration at the same moment (for example the
+        owner and an admin). Nothing was written. Reload it and try again.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: CONFLICT
+              message: The declaration changed in the meantime, please reload it
+              details: []
+
+  schemas:
+    DeclarationType:
+      type: string
+      enum: [lost, found]
+      description: '`lost`: the user lost an item. `found`: the user found an item.'
+      example: lost
+
+    DeclarationStatus:
+      type: string
+      enum: [pending, matched, resolved, expired, hidden, deleted]
+      description: |
+        - `pending`: published, waiting for a match or a resolution (the default).
+        - `matched`: at least one match is in progress (set by the system).
+        - `resolved`: the item went back to its owner.
+        - `expired`: too old without resolution (set by the system). The owner can renew it.
+        - `hidden`: hidden by moderation. Only an admin can restore it.
+        - `deleted`: soft deleted. Final, invisible everywhere.
+      example: pending
+
+    DeclarationCategory:
+      type: string
+      description: |
+        Category of the item. `student_card_id` is **sensitive**: its picture is never shown to
+        other users.
+      enum:
+        - phone
+        - laptop_tablet
+        - earbuds_headphones
+        - charger_cable
+        - book_notebook
+        - student_card_id
+        - wallet_bag
+        - keys
+        - calculator_stationery
+        - usb_storage
+        - glasses
+        - clothing
+        - water_bottle_lunchbox
+        - other
+      example: wallet_bag
+
+    DeclarationAttributes:
+      type: object
+      description: |
+        Optional details that depend on the category (`brand`, `model`, `color`...). A flat object
+        of short strings: at most 10 keys, keys start with a letter and use letters, digits and `_`
+        (30 characters max), values are at most 100 characters.
+      maxProperties: 10
+      additionalProperties:
+        type: string
+        maxLength: 100
+      example:
+        brand: Nike
+        color: black
+
+    CreateDeclarationRequest:
+      type: object
+      required: [title, type, description, date, location, category]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Black Nike backpack
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        description:
+          type: string
+          minLength: 10
+          maxLength: 1000
+          example: Black Nike backpack with a red keychain, lost Monday afternoon.
+        date:
+          type: string
+          format: date
+          description: |
+            Day the item was lost or found (`YYYY-MM-DD`, a full ISO timestamp is also accepted).
+            Must be a real day, not in the future.
+          example: '2026-11-18'
+        location:
+          type: string
+          minLength: 2
+          maxLength: 150
+          description: Free text. The interface suggests common campus places.
+          example: Main library, 2nd floor
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        attributes:
+          $ref: '#/components/schemas/DeclarationAttributes'
+        privateInfo:
+          type: string
+          maxLength: 500
+          description: Hidden detail to prove ownership. Only the owner and admins can read it.
+          example: Physics notebook inside with my name on page 1
+
+    CreateDeclarationMultipart:
+      type: object
+      required: [title, type, description, date, location, category]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Black Nike backpack
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        description:
+          type: string
+          minLength: 10
+          maxLength: 1000
+          example: Black Nike backpack with a red keychain, lost Monday afternoon.
+        date:
+          type: string
+          example: '2026-11-18'
+        location:
+          type: string
+          example: Main library, 2nd floor
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        attributes:
+          type: string
+          description: The attributes object, **as a JSON string** (a form field can only hold text).
+          example: '{"brand":"Nike","color":"black"}'
+        privateInfo:
+          type: string
+          maxLength: 500
+          example: Physics notebook inside with my name on page 1
+        picture:
+          type: string
+          format: binary
+          description: Optional image, jpeg, png or webp, at most 5 MB.
+
+    UpdateDeclarationRequest:
+      type: object
+      description: |
+        Partial update, at least one field. `type`, `privateInfo`, `status`, `owner` and `picture`
+        are not editable here.
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Black Nike backpack, red keychain
+        description:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        date:
+          type: string
+          format: date
+          description: Must be a real day, not in the future.
+          example: '2026-11-18'
+        location:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: Library, 1st floor
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        attributes:
+          $ref: '#/components/schemas/DeclarationAttributes'
+
+    ChangeStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/DeclarationStatus'
+
+    PictureUpload:
+      type: object
+      required: [picture]
+      properties:
+        picture:
+          type: string
+          format: binary
+          description: Image file, jpeg, png or webp, at most 5 MB. No other field is accepted.
+
+    DeclarationOwnerView:
+      type: object
+      description: |
+        Full view, returned to the owner and to admins. The only view that includes `privateInfo`.
+      required:
+        [
+          id,
+          title,
+          type,
+          description,
+          category,
+          attributes,
+          privateInfo,
+          picture,
+          status,
+          date,
+          location,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id:
+          type: string
+          example: '665f2a7b9b1d8a0012a4c801'
+        title:
+          type: string
+          example: Black Nike backpack
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        description:
+          type: string
+          example: Black Nike backpack with a red keychain, lost Monday afternoon.
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        attributes:
+          $ref: '#/components/schemas/DeclarationAttributes'
+        privateInfo:
+          type: string
+          nullable: true
+          example: Physics notebook inside with my name on page 1
+        picture:
+          type: string
+          nullable: true
+          description: URL of the picture route, or `null` when there is no picture.
+          example: /api/v1/declarations/665f2a7b9b1d8a0012a4c801/picture
+        status:
+          $ref: '#/components/schemas/DeclarationStatus'
+        date:
+          type: string
+          format: date-time
+          example: '2026-11-18T00:00:00.000Z'
+        location:
+          type: string
+          example: Main library, 2nd floor
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-19T08:30:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-11-19T08:30:00.000Z'
+
+    DeclarationPublicView:
+      type: object
+      description: |
+        What every other user sees: no `privateInfo`, no `updatedAt`, and never the identity of the
+        owner. `picture` is `null` for the sensitive `student_card_id` category.
+      required:
+        [
+          id,
+          title,
+          type,
+          description,
+          category,
+          attributes,
+          picture,
+          status,
+          date,
+          location,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+          example: '665f2a7b9b1d8a0012a4c801'
+        title:
+          type: string
+          example: Black Nike backpack
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        description:
+          type: string
+          example: Black Nike backpack with a red keychain, lost Monday afternoon.
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        attributes:
+          $ref: '#/components/schemas/DeclarationAttributes'
+        picture:
+          type: string
+          nullable: true
+          example: /api/v1/declarations/665f2a7b9b1d8a0012a4c801/picture
+        status:
+          $ref: '#/components/schemas/DeclarationStatus'
+        date:
+          type: string
+          format: date-time
+          example: '2026-11-18T00:00:00.000Z'
+        location:
+          type: string
+          example: Main library, 2nd floor
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-19T08:30:00.000Z'
+
+    DeclarationSummary:
+      type: object
+      description: Light shape used in lists. No `description`, `attributes` or `privateInfo`.
+      required: [id, title, type, category, picture, status, date, location, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          example: '665f2a7b9b1d8a0012a4c801'
+        title:
+          type: string
+          example: Black Nike backpack
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        picture:
+          type: string
+          nullable: true
+          example: /api/v1/declarations/665f2a7b9b1d8a0012a4c801/picture
+        status:
+          $ref: '#/components/schemas/DeclarationStatus'
+        date:
+          type: string
+          format: date-time
+          example: '2026-11-18T00:00:00.000Z'
+        location:
+          type: string
+          example: Main library, 2nd floor
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-19T08:30:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-11-19T08:30:00.000Z'
+
+    Pagination:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          description: Number of declarations matching the filters, across all pages.
+          example: 42
+        totalPages:
+          type: integer
+          example: 3
+
+    DeclarationEnvelope:
+      type: object
+      required: [declaration]
+      properties:
+        declaration:
+          $ref: '#/components/schemas/DeclarationOwnerView'
+
+    DeclarationListResponse:
+      type: object
+      required: [declarations, pagination]
+      properties:
+        declarations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeclarationSummary'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    DeclarationDetailsResponse:
+      type: object
+      required: [declaration, isOwner, ownerDeleted, allowedTransitions]
+      properties:
+        declaration:
+          description: Owner view for the owner and admins, public view for everybody else.
+          oneOf:
+            - $ref: '#/components/schemas/DeclarationOwnerView'
+            - $ref: '#/components/schemas/DeclarationPublicView'
+        isOwner:
+          type: boolean
+          description: '`true` when the viewer owns the declaration (an admin who does not is `false`).'
+        ownerDeleted:
+          type: boolean
+          description: '`true` when the owner deleted their account, to show a "deleted user" label.'
+        allowedTransitions:
+          type: array
+          description: |
+            Statuses the viewer can move the declaration to. Empty for a viewer who is neither the
+            owner nor an admin.
+          items:
+            $ref: '#/components/schemas/DeclarationStatus'
+          example: [resolved, deleted]

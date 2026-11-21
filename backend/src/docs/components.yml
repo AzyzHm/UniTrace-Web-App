@@ -1,0 +1,257 @@
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Short-lived access token (15 minutes by default).
+
+        1. Call `POST /api/v1/auth/login`.
+        2. Copy `accessToken` from the response.
+        3. Click **Authorize** and paste it (without the `Bearer ` prefix).
+
+        The user is reloaded from the database on every request, so a suspension or an account
+        deletion applies immediately, not when the token expires.
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refreshToken
+      description: |
+        Long-lived refresh token (30 days), sent **automatically by the browser** as an `httpOnly`
+        cookie. It is set by login, refresh and change password, and it is only sent to
+        `/api/v1/auth/*`. It cannot be pasted into the Authorize dialog.
+
+  headers:
+    RetryAfter:
+      description: Seconds to wait before trying again.
+      schema:
+        type: integer
+        minimum: 1
+        example: 120
+    SetRefreshCookie:
+      description: |
+        Sets the `refreshToken` cookie: `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`,
+        30 days, and `Secure` in production. The value is a new random token, never reused.
+      schema:
+        type: string
+        example: refreshToken=3f9c...; Max-Age=2592000; Path=/api/v1/auth; HttpOnly; SameSite=Strict
+    ClearRefreshCookie:
+      description: Removes the `refreshToken` cookie from the browser.
+      schema:
+        type: string
+        example: refreshToken=; Path=/api/v1/auth; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict
+    NoStore:
+      description: Always `no-store`, so no browser or proxy keeps a response that holds a token.
+      schema:
+        type: string
+        example: no-store
+
+  schemas:
+    ErrorDetail:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          description: Name of the invalid field. Nested fields use a dot (`attributes.brand`).
+          example: email
+        message:
+          type: string
+          example: Please use your university email address
+
+    ErrorResponse:
+      type: object
+      description: |
+        The single error format of the whole API. Every error, from every route, has this shape.
+        Stack traces and internal messages are never sent.
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable code. Use it in the client, not the message.
+              enum:
+                - VALIDATION_ERROR
+                - INVALID_CODE
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - EMAIL_NOT_VERIFIED
+                - NOT_FOUND
+                - CONFLICT
+                - FILE_TOO_LARGE
+                - RATE_LIMITED
+                - INTERNAL_ERROR
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable summary.
+              example: Invalid input
+            details:
+              type: array
+              description: Field-level problems. Empty when the error is not about a field.
+              items:
+                $ref: '#/components/schemas/ErrorDetail'
+
+    User:
+      type: object
+      description: |
+        Public view of an account. `password`, `isActive` and `deletedAt` are never returned.
+      required: [id, username, email, phone, role, isEmailVerified, createdAt]
+      properties:
+        id:
+          type: string
+          example: '665f1c2e9b1d8a0012a4c7e1'
+        username:
+          type: string
+          example: sara.k
+        email:
+          type: string
+          format: email
+          example: sara.k@isamm.uma.tn
+        phone:
+          type: string
+          nullable: true
+          example: '+21655000001'
+        role:
+          type: string
+          enum: [user, admin]
+          example: user
+        isEmailVerified:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-02T09:15:00.000Z'
+
+    UserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+  responses:
+    ValidationError:
+      description: |
+        **400 `VALIDATION_ERROR`**. A body, a path parameter or a query parameter is invalid.
+        `details` lists every problem at once, not only the first one. Unknown fields are rejected,
+        they are never silently ignored. A malformed JSON body or a JSON body over 10 KB gives the
+        same code, with an empty `details`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidFields:
+              summary: Invalid fields
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Invalid input
+                  details:
+                    - field: id
+                      message: id must be a valid declaration id
+            malformedJson:
+              summary: Malformed JSON body
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Malformed JSON body
+                  details: []
+
+    Unauthenticated:
+      description: |
+        **401 `UNAUTHENTICATED`**. The `Authorization: Bearer <accessToken>` header is missing,
+        malformed, expired or invalid, or the account no longer exists (deleted). The message does
+        not say which, on purpose.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingToken:
+              summary: No Authorization header
+              value:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Authentication required
+                  details: []
+            invalidToken:
+              summary: Expired or invalid token, or deleted account
+              value:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Invalid or expired token
+                  details: []
+
+    AccountSuspended:
+      description: |
+        **403 `FORBIDDEN`**. The account is suspended by an administrator. Checked on every
+        authenticated request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: FORBIDDEN
+              message: Your account is suspended
+              details: []
+
+    FileTooLarge:
+      description: |
+        **413 `FILE_TOO_LARGE`**. The picture is over 5 MB. Nothing was saved.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: FILE_TOO_LARGE
+              message: Picture is too large, the maximum is 5 MB
+              details: []
+
+    RateLimited:
+      description: |
+        **429 `RATE_LIMITED`**. Too many requests. Wait `Retry-After` seconds.
+
+        Every `/api/v1` route shares a global limit of 1500 requests per 15 minutes per IP. Some
+        routes add a stricter limit, described in the operation.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Too many requests, please try again later
+              details: []
+
+    InternalError:
+      description: |
+        **500 `INTERNAL_ERROR`**. Unexpected server failure. The cause is logged on the server and
+        never sent to the client.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Internal server error
+              details: []

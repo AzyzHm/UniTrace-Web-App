@@ -1,0 +1,703 @@
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Create an account
+      description: |
+        Creates an **unverified** account. No session is opened: the email address must be verified
+        (`POST /api/v1/auth/verify-email`) before the first login.
+
+        **Rules**
+        - `email` must belong to a university domain (`ALLOWED_EMAIL_DOMAINS`, `isamm.uma.tn` and
+          `isamm.u-manouba.tn` by default). It is trimmed and lowercased, and must be unique.
+        - `username` is unique, case-insensitive (`Sara` and `sara` are the same name).
+        - `confirmPassword` is only checked, it is never stored.
+        - Unknown fields are rejected. Sending `role`, for example, gives a 400, so nobody can
+          register as an admin.
+        - A 6-digit code, valid 10 minutes, is emailed. If the email provider fails, the account is
+          still created (201): call `resend-verification` to get a new code.
+
+        **Rate limit:** 60 requests per hour per IP (every request counts, because each one sends an
+        email).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              username: new.student
+              email: new.student@isamm.uma.tn
+              phone: '+21655000009'
+              password: Passw0rdDemo
+              confirmPassword: Passw0rdDemo
+      responses:
+        '201':
+          description: Account created, email not verified yet. A verification code was sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+              example:
+                user:
+                  id: '665f1c2e9b1d8a0012a4c7e1'
+                  username: new.student
+                  email: new.student@isamm.uma.tn
+                  phone: '+21655000009'
+                  role: user
+                  isEmailVerified: false
+                  createdAt: '2026-11-21T10:00:00.000Z'
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. A field is missing or invalid, or an unknown field was sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                passwordsDoNotMatch:
+                  summary: Passwords do not match
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: confirmPassword
+                          message: Passwords do not match
+                notUniversityEmail:
+                  summary: Email outside the university domains
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: email
+                          message: Please use your university email address
+                roleRejected:
+                  summary: Unknown field (role)
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: role
+                          message: role is not allowed
+                weakPassword:
+                  summary: Weak password
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: password
+                          message: Password must contain at least one letter and one digit
+        '409':
+          description: |
+            **409 `CONFLICT`**. The email or the username is already used. `details[0].field` says
+            which one.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emailTaken:
+                  summary: Email already used
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: Account already exists
+                      details:
+                        - field: email
+                          message: Email is already used
+                usernameTaken:
+                  summary: Username already taken
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: Account already exists
+                      details:
+                        - field: username
+                          message: Username is already taken
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/auth/verify-email:
+    post:
+      tags: [Auth]
+      operationId: verifyEmail
+      summary: Verify an email address with the emailed code
+      description: |
+        Confirms the address with the 6-digit code received after registration (or after an email
+        change). It does **not** log the user in: call `login` afterwards.
+
+        The code is valid 10 minutes, works once, and allows 5 attempts. A wrong code, an expired
+        code, an exhausted code, an unknown email and an already verified account all return the
+        **same** `INVALID_CODE` error, so the API cannot be used to find out which emails are
+        registered.
+
+        **Rate limit:** 100 failed requests per 15 minutes per IP (successful requests do not count).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+            example:
+              email: new.student@isamm.uma.tn
+              code: '123456'
+      responses:
+        '200':
+          description: Email verified. The user can now log in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+              example:
+                user:
+                  id: '665f1c2e9b1d8a0012a4c7e1'
+                  username: new.student
+                  email: new.student@isamm.uma.tn
+                  phone: '+21655000009'
+                  role: user
+                  isEmailVerified: true
+                  createdAt: '2026-11-21T10:00:00.000Z'
+        '400':
+          description: |
+            **400**. Either `VALIDATION_ERROR` (malformed email, code that is not 6 digits) or
+            `INVALID_CODE` (wrong, expired or used code, unknown email, already verified).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCode:
+                  summary: Wrong, expired or used code
+                  value:
+                    error:
+                      code: INVALID_CODE
+                      message: Invalid or expired code
+                      details: []
+                badFormat:
+                  summary: Code is not 6 digits
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: code
+                          message: Code must be 6 digits
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/auth/resend-verification:
+    post:
+      tags: [Auth]
+      operationId: resendVerification
+      summary: Send a new verification code
+      description: |
+        Sends a new code to an unverified account. The answer is the **same 200** whether the
+        address is unknown, already verified or unverified, so it cannot be used to discover
+        accounts.
+
+        A new code can be requested every **2 minutes**. Before that, the API answers 429 with a
+        `Retry-After` header.
+
+        **Rate limit:** 60 requests per hour per IP, on top of the 2 minute cooldown.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailOnlyRequest'
+            example:
+              email: new.student@isamm.uma.tn
+      responses:
+        '200':
+          description: Always returned for a valid request, whether or not a code was really sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: If this address belongs to an unverified account, a new code has been sent.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: |
+            **429 `RATE_LIMITED`**. A code was sent less than 2 minutes ago, or the hourly limit is
+            reached. Wait `Retry-After` seconds.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cooldown:
+                  summary: Code requested too soon
+                  value:
+                    error:
+                      code: RATE_LIMITED
+                      message: Please wait before requesting another code
+                      details: []
+                limiter:
+                  summary: Hourly limit reached
+                  value:
+                    error:
+                      code: RATE_LIMITED
+                      message: Too many requests, please try again later
+                      details: []
+        '500':
+          description: |
+            **500 `INTERNAL_ERROR`**. Unexpected failure, including the email provider being
+            unreachable. The cause is logged, never sent to the client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  message: Internal server error
+                  details: []
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Log in
+      description: |
+        Returns a short-lived **access token** in the body and sets a long-lived **refresh token**
+        in an `httpOnly` cookie. The access token goes in `Authorization: Bearer <token>` on every
+        protected route.
+
+        **Security notes**
+        - A wrong password and an unknown email return the **same** 401 and take the same time, so
+          accounts cannot be discovered.
+        - The email verification and suspension checks run **after** the password check, so they
+          are only revealed to someone who knows the password.
+
+        **Rate limits (failed attempts only):** 5 per 15 minutes per IP and email pair, and 100 per
+        15 minutes per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: sara.k@isamm.uma.tn
+              password: Passw0rdDemo
+      responses:
+        '200':
+          description: Logged in.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetRefreshCookie'
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NjVmMWMyZSJ9.signature
+                user:
+                  id: '665f1c2e9b1d8a0012a4c7e1'
+                  username: sara.k
+                  email: sara.k@isamm.uma.tn
+                  phone: '+21655000001'
+                  role: user
+                  isEmailVerified: true
+                  createdAt: '2026-11-02T09:15:00.000Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: |
+            **401 `UNAUTHENTICATED`**. Wrong email or wrong password (the message is the same for
+            both).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Invalid email or password
+                  details: []
+        '403':
+          description: |
+            **403**. The credentials are correct but the account cannot log in: either the email is
+            not verified yet (`EMAIL_NOT_VERIFIED`) or the account is suspended (`FORBIDDEN`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emailNotVerified:
+                  summary: Email not verified
+                  value:
+                    error:
+                      code: EMAIL_NOT_VERIFIED
+                      message: Email address is not verified
+                      details: []
+                suspended:
+                  summary: Account suspended
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: Your account is suspended
+                      details: []
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      summary: Get a new access token
+      description: |
+        Exchanges the `refreshToken` **cookie** for a new access token. There is no request body:
+        the browser sends the cookie by itself (only to `/api/v1/auth/*`). It also works from this
+        page after a login, because the docs and the API share the same origin.
+
+        **Rotation:** every refresh token works **once**. The response sets a new cookie.
+
+        **Reuse detection:** if an already used token comes back, it was probably copied. All the
+        sessions of that user are revoked and the answer is 401.
+      security:
+        - refreshCookie: []
+      responses:
+        '200':
+          description: New access token, and a new refresh cookie (the old one is now invalid).
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetRefreshCookie'
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NjVmMWMyZSJ9.signature
+                user:
+                  id: '665f1c2e9b1d8a0012a4c7e1'
+                  username: sara.k
+                  email: sara.k@isamm.uma.tn
+                  phone: '+21655000001'
+                  role: user
+                  isEmailVerified: true
+                  createdAt: '2026-11-02T09:15:00.000Z'
+        '401':
+          description: |
+            **401 `UNAUTHENTICATED`**. The cookie is missing, unknown, expired or already used, or
+            the account was deleted. The cookie is cleared so the browser stops sending it. After a
+            reuse, every session of the user is revoked.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearRefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: Invalid or expired session
+                  details: []
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Log out
+      description: |
+        Revokes the refresh token on the server and clears the cookie. There is no request body.
+
+        It is **idempotent and never fails for a bad session**: it returns 204 even when the cookie
+        is missing, unknown or already used, so the client can always call it to end up logged out.
+        The access token already issued stays valid until it expires (15 minutes by default), so
+        the client must discard it.
+      security: []
+      responses:
+        '204':
+          description: Logged out. No body.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearRefreshCookie'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Auth]
+      operationId: forgotPassword
+      summary: Request a password reset code
+      description: |
+        Emails a 6-digit reset code (valid 10 minutes). The answer is the **same 200** for an
+        unknown address, a deleted account and a suspended account, so it cannot be used to
+        discover accounts.
+
+        A new code can be requested every **2 minutes**. Before that, the API answers 429 with a
+        `Retry-After` header.
+
+        **Rate limit:** 60 requests per hour per IP, on top of the 2 minute cooldown.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailOnlyRequest'
+            example:
+              email: sara.k@isamm.uma.tn
+      responses:
+        '200':
+          description: Always returned for a valid request, whether or not a code was really sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: If this address belongs to an account, a reset code has been sent.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: |
+            **429 `RATE_LIMITED`**. A code was sent less than 2 minutes ago, or the hourly limit is
+            reached. Wait `Retry-After` seconds.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                cooldown:
+                  summary: Code requested too soon
+                  value:
+                    error:
+                      code: RATE_LIMITED
+                      message: Please wait before requesting another code
+                      details: []
+                limiter:
+                  summary: Hourly limit reached
+                  value:
+                    error:
+                      code: RATE_LIMITED
+                      message: Too many requests, please try again later
+                      details: []
+        '500':
+          description: |
+            **500 `INTERNAL_ERROR`**. Unexpected failure, including the email provider being
+            unreachable. The cause is logged, never sent to the client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  message: Internal server error
+                  details: []
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      operationId: resetPassword
+      summary: Set a new password with the emailed code
+      description: |
+        Sets a new password using the code from `forgot-password`. The code works once and allows
+        5 attempts.
+
+        **Effects:** every session of the user is revoked (all refresh tokens are deleted) and the
+        cookie of this browser is cleared. The user must log in again.
+
+        A wrong, expired or used code, an unknown email, and a deleted or suspended account all
+        return the **same** `INVALID_CODE` error.
+
+        **Rate limit:** 100 failed requests per 15 minutes per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+            example:
+              email: sara.k@isamm.uma.tn
+              code: '123456'
+              newPassword: NewPassw0rd1
+              confirmPassword: NewPassw0rd1
+      responses:
+        '200':
+          description: Password changed, all sessions revoked.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearRefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Your password has been changed. Please log in again.
+        '400':
+          description: |
+            **400**. Either `VALIDATION_ERROR` (weak password, mismatch, malformed code) or
+            `INVALID_CODE` (wrong, expired or used code, or no usable account).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCode:
+                  summary: Wrong, expired or used code
+                  value:
+                    error:
+                      code: INVALID_CODE
+                      message: Invalid or expired code
+                      details: []
+                passwordsDoNotMatch:
+                  summary: Passwords do not match
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: confirmPassword
+                          message: Passwords do not match
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [username, email, password, confirmPassword]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[a-zA-Z0-9_.]+$'
+          description: Letters, digits, `_` and `.`. Unique, case-insensitive. Trimmed.
+          example: new.student
+        email:
+          type: string
+          format: email
+          description: University email address. Trimmed and lowercased. Unique.
+          example: new.student@isamm.uma.tn
+        phone:
+          type: string
+          pattern: '^\+?[0-9]{8,15}$'
+          description: Optional. 8 to 15 digits, optionally starting with `+`.
+          example: '+21655000009'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: |
+            8 to 72 characters with at least one letter and one digit. 72 is the most bcrypt uses.
+          example: Passw0rdDemo
+        confirmPassword:
+          type: string
+          format: password
+          description: Must equal `password`. Never stored.
+          example: Passw0rdDemo
+
+    VerifyEmailRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          format: email
+          example: new.student@isamm.uma.tn
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: The 6-digit code from the email.
+          example: '123456'
+
+    EmailOnlyRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          example: sara.k@isamm.uma.tn
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: sara.k@isamm.uma.tn
+        password:
+          type: string
+          format: password
+          maxLength: 72
+          example: Passw0rdDemo
+
+    ResetPasswordRequest:
+      type: object
+      required: [email, code, newPassword, confirmPassword]
+      properties:
+        email:
+          type: string
+          format: email
+          example: sara.k@isamm.uma.tn
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          example: '123456'
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: 8 to 72 characters with at least one letter and one digit.
+          example: NewPassw0rd1
+        confirmPassword:
+          type: string
+          format: password
+          description: Must equal `newPassword`.
+          example: NewPassw0rd1
+
+    SessionResponse:
+      type: object
+      required: [accessToken, user]
+      properties:
+        accessToken:
+          type: string
+          description: JWT, valid 15 minutes by default. Send it as `Authorization Bearer`.
+        user:
+          $ref: '#/components/schemas/User'
