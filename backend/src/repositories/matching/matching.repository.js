@@ -1,5 +1,11 @@
-import { ACTIVE_STATUSES, CORRESPONDENCE_STATUS as S } from '../../constants/matching/correspondence.js';
-import { DECLARATION_TYPE, MATCHABLE_STATUSES } from '../../constants/matching/declaration-adapter.js';
+import {
+  ACTIVE_STATUSES,
+  CORRESPONDENCE_STATUS as S,
+} from '../../constants/matching/correspondence.js';
+import {
+  DECLARATION_TYPE,
+  MATCHABLE_STATUSES,
+} from '../../constants/matching/declaration-adapter.js';
 import { Declaration } from '../../models/declarations/declaration.model.js';
 import { Correspondence } from '../../models/matching/correspondence.model.js';
 import { DeclarationEmbedding } from '../../models/matching/declaration-embedding.model.js';
@@ -28,12 +34,15 @@ export function createMatchingRepository() {
         .lean();
     },
 
-    getEmbedding: (declarationId) => DeclarationEmbedding.findOne({ declaration: declarationId }).lean(),
+    getEmbedding: (declarationId) =>
+      DeclarationEmbedding.findOne({ declaration: declarationId }).lean(),
     saveEmbedding(declarationId, { set = {}, unset = {} }) {
       const update = {};
       if (Object.keys(set).length) update.$set = set;
       if (Object.keys(unset).length) update.$unset = unset;
-      return DeclarationEmbedding.updateOne({ declaration: declarationId }, update, { upsert: true });
+      return DeclarationEmbedding.updateOne({ declaration: declarationId }, update, {
+        upsert: true,
+      });
     },
 
     findPair: (lost, found) => Correspondence.findOne({ lost, found }),

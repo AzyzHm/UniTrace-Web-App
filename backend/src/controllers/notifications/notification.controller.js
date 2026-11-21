@@ -1,7 +1,8 @@
 import { toNotificationResponse } from '../../presenters/matching/correspondence.presenter.js';
 
 export function createNotificationController({ notificationService }) {
-  if (!notificationService) throw new Error('createNotificationController(): notificationService is required');
+  if (!notificationService)
+    throw new Error('createNotificationController(): notificationService is required');
 
   return {
     async list(req, res) {

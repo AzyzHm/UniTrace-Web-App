@@ -22,7 +22,12 @@ export function createContainer({ config, logger = silentLogger, clock, override
   // Frozen, and limited to what the app and the tests need: the services, the auth middleware
   // and a few shared objects.
   return Object.freeze({
-    services: { ...auth.services, ...users.services, ...declarations.services, ...matching.services }, 
+    services: {
+      ...auth.services,
+      ...users.services,
+      ...declarations.services,
+      ...matching.services,
+    },
     embeddingService: matching.embeddingService,
     requireAuth: auth.requireAuth,
 

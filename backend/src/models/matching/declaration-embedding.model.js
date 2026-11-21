@@ -4,7 +4,12 @@ import mongoose from 'mongoose';
 // query can ever send 384 numbers to a client.
 const declarationEmbeddingSchema = new mongoose.Schema(
   {
-    declaration: { type: mongoose.Schema.Types.ObjectId, ref: 'Declaration', required: true, unique: true },
+    declaration: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Declaration',
+      required: true,
+      unique: true,
+    },
 
     textVector: { type: [Number], default: undefined },
     textHash: { type: String, default: null }, // recompute only when the embedded text changed
@@ -18,4 +23,7 @@ const declarationEmbeddingSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-export const DeclarationEmbedding = mongoose.model('DeclarationEmbedding', declarationEmbeddingSchema);
+export const DeclarationEmbedding = mongoose.model(
+  'DeclarationEmbedding',
+  declarationEmbeddingSchema,
+);

@@ -254,12 +254,24 @@
               "formdata": [
                 { "key": "title", "value": "Black Nike backpack", "type": "text" },
                 { "key": "type", "value": "lost", "type": "text" },
-                { "key": "description", "value": "Black Nike backpack with a red keychain, lost Monday afternoon.", "type": "text" },
+                {
+                  "key": "description",
+                  "value": "Black Nike backpack with a red keychain, lost Monday afternoon.",
+                  "type": "text"
+                },
                 { "key": "date", "value": "2026-10-20", "type": "text" },
                 { "key": "location", "value": "Main library, 2nd floor", "type": "text" },
                 { "key": "category", "value": "wallet_bag", "type": "text" },
-                { "key": "attributes", "value": "{\"brand\":\"Nike\",\"color\":\"black\"}", "type": "text" },
-                { "key": "privateInfo", "value": "Physics notebook inside with my name on page 1", "type": "text" },
+                {
+                  "key": "attributes",
+                  "value": "{\"brand\":\"Nike\",\"color\":\"black\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "privateInfo",
+                  "value": "Physics notebook inside with my name on page 1",
+                  "type": "text"
+                },
                 { "key": "picture", "type": "file", "src": [] }
               ]
             },
@@ -348,9 +360,7 @@
             "url": "{{baseUrl}}/api/v1/declarations/{{declarationId}}/picture",
             "body": {
               "mode": "formdata",
-              "formdata": [
-                { "key": "picture", "type": "file", "src": [] }
-              ]
+              "formdata": [{ "key": "picture", "type": "file", "src": [] }]
             }
           }
         },
@@ -626,7 +636,14 @@
             "url": {
               "raw": "{{baseUrl}}/api/v1/correspondences/declaration/{{declarationId}}/rematch",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "correspondences", "declaration", "{{declarationId}}", "rematch"]
+              "path": [
+                "api",
+                "v1",
+                "correspondences",
+                "declaration",
+                "{{declarationId}}",
+                "rematch"
+              ]
             },
             "description": "No body. Owner or admin only. Recomputes the matches of the declaration now."
           }

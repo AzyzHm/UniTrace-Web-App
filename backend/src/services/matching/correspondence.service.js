@@ -1,5 +1,9 @@
 import { isAdminRole } from '../../constants/common/roles.js';
-import { CORRESPONDENCE_STATUS as S, DECISION as D, MATCH_EVENT_TYPE as E } from '../../constants/matching/correspondence.js';
+import {
+  CORRESPONDENCE_STATUS as S,
+  DECISION as D,
+  MATCH_EVENT_TYPE as E,
+} from '../../constants/matching/correspondence.js';
 import {
   DECLARATION_TYPE,
   MATCH_FIELDS,
@@ -26,9 +30,14 @@ export function createCorrespondenceService({
   notificationService,
   declarationService,
   userRepository,
-  logger,
 }) {
-  const required = { repo, matchingService, notificationService, declarationService, userRepository };
+  const required = {
+    repo,
+    matchingService,
+    notificationService,
+    declarationService,
+    userRepository,
+  };
   for (const [name, dep] of Object.entries(required)) {
     if (!dep) throw new Error(`createCorrespondenceService(): ${name} is required`);
   }
@@ -36,9 +45,11 @@ export function createCorrespondenceService({
   const notFound = () => new NotFoundError('Correspondence not found');
 
   const sideOf = (c, user) =>
-    String(c.lost.owner) === String(user._id) ? 'lost'
-    : String(c.found.owner) === String(user._id) ? 'found'
-    : null;
+    String(c.lost.owner) === String(user._id)
+      ? 'lost'
+      : String(c.found.owner) === String(user._id)
+        ? 'found'
+        : null;
 
   // The other party's identity is revealed only once both sides accepted.
   async function contactFor(c, side) {
@@ -69,7 +80,12 @@ export function createCorrespondenceService({
       await m.save();
       await repo.addEvent(m._id, E.CLOSED, null, { reason });
       for (const d of [m.lost, m.found]) {
-        await notificationService.notify(d.owner, N.CORRESPONDENCE_CLOSED, `A match for "${d.title}" was closed.`, m._id);
+        await notificationService.notify(
+          d.owner,
+          N.CORRESPONDENCE_CLOSED,
+          `A match for "${d.title}" was closed.`,
+          m._id,
+        );
       }
     }
   }
@@ -79,24 +95,36 @@ export function createCorrespondenceService({
 
     async react(user, id, decision, comment) {
       const { c, side, other } = await loadAsParticipant(user, id);
-      if ([S.RESOLVED, S.CLOSED].includes(c.status)) throw new ConflictError('This correspondence is already closed');
+      if ([S.RESOLVED, S.CLOSED].includes(c.status)) {
+        throw new ConflictError('This correspondence is already closed');
+      }
       if (c.status === S.REFUSED) throw new ConflictError('This correspondence was refused');
 
       // Case 4: a declaration can have only one accepted match at a time.
       if (decision === D.ACCEPT && (await repo.findAcceptedClash(side, c[side]._id, c._id))) {
-        throw new ConflictError('You already accepted another correspondence for this declaration. Refuse it first.');
+        throw new ConflictError(
+          'You already accepted another correspondence for this declaration. Refuse it first.',
+        );
       }
 
       const before = c.status;
-      c.set(`reactions.${side}`, { decision, comment: comment ?? null, at: new Date() });
+      c.set(`reactions.${side}`, {
+        decision,
+        comment: comment ?? null,
+        at: new Date(),
+        recoveredAt: null,
+      });
       c.status = computeStatus(c.reactions);
       await c.save();
 
       const eventType =
-        decision === D.REFUSE ? E.REFUSED
-        : decision === D.VERIFY ? E.VERIFICATION_REQUESTED
-        : c.status === S.ACCEPTED ? E.ACCEPTED
-        : E.ACCEPTED_BY_ONE;
+        decision === D.REFUSE
+          ? E.REFUSED
+          : decision === D.VERIFY
+            ? E.VERIFICATION_REQUESTED
+            : c.status === S.ACCEPTED
+              ? E.ACCEPTED
+              : E.ACCEPTED_BY_ONE;
       await repo.addEvent(c._id, eventType, user._id, { side });
       if (comment) await repo.addEvent(c._id, E.FEEDBACK, user._id, { side, comment });
       if (before !== c.status) {
@@ -105,61 +133,104 @@ export function createCorrespondenceService({
 
       const to = c[other].owner;
       if (decision === D.REFUSE) {
-        await notificationService.notify(to, N.CORRESPONDENCE_REFUSED, `A match for "${c[other].title}" was refused.`, c._id);
+        await notificationService.notify(
+          to,
+          N.CORRESPONDENCE_REFUSED,
+          `A match for "${c[other].title}" was refused.`,
+          c._id,
+        );
       } else if (decision === D.VERIFY) {
-        await notificationService.notify(to, N.VERIFICATION_REQUESTED, `More verification is requested for "${c[other].title}".`, c._id);
+        await notificationService.notify(
+          to,
+          N.VERIFICATION_REQUESTED,
+          `More verification is requested for "${c[other].title}".`,
+          c._id,
+        );
       } else {
         await notificationService.notify(
           to,
           N.CORRESPONDENCE_ACCEPTED,
-          c.status === S.ACCEPTED ? 'Both sides accepted. Arrange the handover.' : 'The other user accepted the match.',
+          c.status === S.ACCEPTED
+            ? 'Both sides accepted. Arrange the handover.'
+            : 'The other user accepted the match.',
           c._id,
         );
       }
       return c;
     },
 
-    // Case 6: object recovered. The correspondence is resolved FIRST, so the status listener
-    // (triggered by the declaration change below) does not close it as "unavailable".
+    // Case 6: each owner confirms the handover for THEIR OWN declaration, with their own rights.
+    // The system never changes a declaration status.
     async markRecovered(user, id) {
-      const { c } = await loadAsParticipant(user, id);
+      const { c, side, other } = await loadAsParticipant(user, id);
       if (c.status !== S.ACCEPTED) throw new ConflictError('Both sides must accept first');
+      if (c.reactions[side].recoveredAt) {
+        throw new ConflictError('You already confirmed the recovery');
+      }
 
-      c.status = S.RESOLVED;
+      // Saved BEFORE the status change: the listener triggered by the change must find this
+      // match marked as recovered, so it does not close it.
+      c.set(`reactions.${side}.recoveredAt`, new Date());
       await c.save();
 
       try {
-        for (const d of [c.lost, c.found]) {
-          // Skipped when already resolved, so a retry after a partial failure works.
-          if (d.status !== RESOLVED_STATUS) {
-            await declarationService.changeStatusAsSystem(d._id, RESOLVED_STATUS, { reason: 'object_recovered' });
-          }
+        if (c[side].status !== RESOLVED_STATUS) {
+          await declarationService.changeStatus(user, c[side]._id, RESOLVED_STATUS);
         }
       } catch (err) {
-        c.status = S.ACCEPTED;
+        c.set(`reactions.${side}.recoveredAt`, null);
         await c.save();
         throw err;
       }
+      await repo.addEvent(c._id, E.RECOVERED, user._id, { side });
 
-      await repo.addEvent(c._id, E.RECOVERED, user._id);
-      for (const d of [c.lost, c.found]) {
-        await notificationService.notify(d.owner, N.OBJECT_RECOVERED, `"${d.title}" was recovered, declaration resolved.`, c._id);
+      if (c.reactions[other].recoveredAt) {
+        c.status = S.RESOLVED;
+        await c.save();
+        await repo.addEvent(c._id, E.STATUS_CHANGED, user._id, {
+          from: S.ACCEPTED,
+          to: S.RESOLVED,
+        });
+        for (const d of [c.lost, c.found]) {
+          await notificationService.notify(
+            d.owner,
+            N.OBJECT_RECOVERED,
+            `"${d.title}" was recovered, declaration resolved.`,
+            c._id,
+          );
+        }
+      } else {
+        await notificationService.notify(
+          c[other].owner,
+          N.OBJECT_RECOVERED,
+          `The other user confirmed the handover of "${c[other].title}". Please confirm on your side.`,
+          c._id,
+        );
       }
-      await closeForDeclarations([c.lost._id, c.found._id], 'object_recovered', c._id);
+
+      // The other possible matches of the declaration that was just resolved are closed.
+      await closeForDeclarations([c[side]._id], 'object_recovered', c._id);
       return c;
     },
 
-    // Called by the event listeners when a declaration is edited, hidden, deleted or restored.
+    // Called by the event listeners when a declaration is edited, hidden, deleted, resolved or restored.
     async onDeclarationChanged({ declarationId, changedFields = [] }) {
       const decl = await repo.findDeclaration(declarationId);
+
+      // A resolved declaration closes its other matches, but keeps the one being recovered.
+      if (decl && !decl.deletedAt && decl.status === RESOLVED_STATUS) {
+        const keep = await repo.findRecoveredMatch(declarationId);
+        return closeForDeclarations([declarationId], 'declaration_resolved', keep?._id ?? null);
+      }
       if (!decl || decl.deletedAt || OUT_OF_MATCHING_STATUSES.includes(decl.status)) {
         return closeForDeclarations([declarationId], 'declaration_unavailable');
       }
       if (!changedFields.some((f) => RELEVANT_FIELDS.includes(f))) return null;
 
-      // Heavy edit (case 3 / "user edits strongly"): recompute, then close the untouched
-      // proposals that no longer pass.
-      const fresh = new Set((await matchingService.findMatches(declarationId)).map((m) => String(m._id)));
+      // Heavy edit: recompute, then close the untouched proposals that no longer pass.
+      const fresh = new Set(
+        (await matchingService.findMatches(declarationId)).map((m) => String(m._id)),
+      );
       for (const m of await repo.findUntouchedProposals(declarationId)) {
         if (fresh.has(String(m._id))) continue;
         m.status = S.CLOSED;
@@ -197,7 +268,9 @@ export function createCorrespondenceService({
     async rematch(user, declarationId) {
       const decl = await repo.findDeclaration(declarationId);
       if (!decl) throw new NotFoundError('Declaration not found');
-      if (String(decl.owner) !== String(user._id) && !isAdminRole(user.role)) throw new ForbiddenError();
+      if (String(decl.owner) !== String(user._id) && !isAdminRole(user.role)) {
+        throw new ForbiddenError();
+      }
       return (await matchingService.findMatches(declarationId)).length;
     },
   };

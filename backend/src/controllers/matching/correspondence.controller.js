@@ -2,16 +2,25 @@ import { DECISION } from '../../constants/matching/correspondence.js';
 import { toCorrespondenceResponse } from '../../presenters/matching/correspondence.presenter.js';
 
 export function createCorrespondenceController({ correspondenceService }) {
-  if (!correspondenceService) throw new Error('createCorrespondenceController(): correspondenceService is required');
+  if (!correspondenceService)
+    throw new Error('createCorrespondenceController(): correspondenceService is required');
 
   const react = (decision) => async (req, res) => {
-    const c = await correspondenceService.react(req.user, req.params.id, decision, req.body.comment || undefined);
+    const c = await correspondenceService.react(
+      req.user,
+      req.params.id,
+      decision,
+      req.body.comment || undefined,
+    );
     res.status(200).json({ id: String(c._id), status: c.status });
   };
 
   return {
     async listForDeclaration(req, res) {
-      const views = await correspondenceService.listForDeclaration(req.user, req.params.declarationId);
+      const views = await correspondenceService.listForDeclaration(
+        req.user,
+        req.params.declarationId,
+      );
       res.status(200).json({ items: views.map(toCorrespondenceResponse) });
     },
 

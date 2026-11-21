@@ -1,6 +1,12 @@
 import crypto from 'node:crypto';
-import { CORRESPONDENCE_STATUS as S, MATCH_EVENT_TYPE as E } from '../../constants/matching/correspondence.js';
-import { DECLARATION_TYPE, MATCHABLE_STATUSES } from '../../constants/matching/declaration-adapter.js';
+import {
+  CORRESPONDENCE_STATUS as S,
+  MATCH_EVENT_TYPE as E,
+} from '../../constants/matching/correspondence.js';
+import {
+  DECLARATION_TYPE,
+  MATCHABLE_STATUSES,
+} from '../../constants/matching/declaration-adapter.js';
 import { MATCHING_CONFIG } from '../../constants/matching/matching-config.js';
 import { NOTIFICATION_TYPE as N } from '../../constants/notifications/notification.js';
 import { calculateScore, passesThreshold } from './scoring.js';
@@ -19,7 +25,9 @@ export function createMatchingService({
   config = MATCHING_CONFIG,
 }) {
   if (!repo || !embeddingService || !notificationService || !logger) {
-    throw new Error('createMatchingService(): matchingRepository, embeddingService, notificationService and logger are required');
+    throw new Error(
+      'createMatchingService(): matchingRepository, embeddingService, notificationService and logger are required',
+    );
   }
 
   // vectoriser(declaration): recompute only what changed (text hash, picture filename).
@@ -39,7 +47,10 @@ export function createMatchingService({
         set.imageVector = await embeddingService.embedImage(decl.picture);
         set.imageSource = decl.picture;
       } catch (err) {
-        logger.warn({ err, declaration: String(decl._id) }, 'Image embedding failed, picture signal skipped');
+        logger.warn(
+          { err, declaration: String(decl._id) },
+          'Image embedding failed, picture signal skipped',
+        );
       }
     } else if (!decl.picture && emb?.imageVector?.length) {
       unset.imageVector = 1;
@@ -58,7 +69,8 @@ export function createMatchingService({
 
   // notifier()
   async function notifyProposal(c, lost, found) {
-    const text = (title) => `A possible match was found for "${title}" (confidence: ${c.confidence}).`;
+    const text = (title) =>
+      `A possible match was found for "${title}" (confidence: ${c.confidence}).`;
     await notificationService.notify(lost.owner, N.NEW_CORRESPONDENCE, text(lost.title), c._id);
     await notificationService.notify(found.owner, N.NEW_CORRESPONDENCE, text(found.title), c._id);
     await repo.addEvent(c._id, E.PROPOSAL_SENT);
@@ -98,7 +110,8 @@ export function createMatchingService({
     const moved = Math.abs(existing.globalScore - score.globalScore) > 0.01;
     Object.assign(existing, score);
     await existing.save();
-    if (moved) await repo.addEvent(existing._id, E.SCORE_UPDATED, null, { globalScore: score.globalScore });
+    if (moved)
+      await repo.addEvent(existing._id, E.SCORE_UPDATED, null, { globalScore: score.globalScore });
     return existing;
   }
 
@@ -128,7 +141,11 @@ export function createMatchingService({
 
       const created = [];
       for (const { candidate, score } of scored.slice(0, config.MAX_MATCHES_PER_DECLARATION)) {
-        const c = await upsertCorrespondence(isLost ? decl : candidate, isLost ? candidate : decl, score);
+        const c = await upsertCorrespondence(
+          isLost ? decl : candidate,
+          isLost ? candidate : decl,
+          score,
+        );
         if (c) created.push(c);
       }
       logger.info({ declaration: String(declarationId), matches: created.length }, 'Matching done');

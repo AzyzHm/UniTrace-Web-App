@@ -20,7 +20,12 @@ export function buildMatching({ common, declarations, use }) {
     createNotificationService({ notificationRepository, logger }),
   );
 
-  const matchingService = createMatchingService({ matchingRepository, embeddingService, notificationService, logger });
+  const matchingService = createMatchingService({
+    matchingRepository,
+    embeddingService,
+    notificationService,
+    logger,
+  });
   const correspondenceService = createCorrespondenceService({
     matchingRepository,
     matchingService,
@@ -32,5 +37,8 @@ export function buildMatching({ common, declarations, use }) {
 
   registerMatchingListeners({ eventBus, matchingService, correspondenceService, logger });
 
-  return { services: { matchingService, correspondenceService, notificationService }, embeddingService };
+  return {
+    services: { matchingService, correspondenceService, notificationService },
+    embeddingService,
+  };
 }

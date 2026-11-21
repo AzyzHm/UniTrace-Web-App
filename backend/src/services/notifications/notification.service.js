@@ -1,7 +1,8 @@
 import { NotFoundError } from '../../exceptions/app-error.js';
 
 export function createNotificationService({ notificationRepository, logger }) {
-  if (!notificationRepository) throw new Error('createNotificationService(): notificationRepository is required');
+  if (!notificationRepository)
+    throw new Error('createNotificationService(): notificationRepository is required');
 
   return {
     // Never breaks the caller: a failed notification is logged, not thrown.

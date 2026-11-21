@@ -14,7 +14,11 @@ export function createCorrespondenceRoutes({
   router.use(requireAuth);
 
   // The literal paths must stay above '/:id', otherwise 'me' or 'declaration' would be read as an id.
-  router.get('/me', validate(listCorrespondencesQuerySchema, 'query'), correspondenceController.listMine);
+  router.get(
+    '/me',
+    validate(listCorrespondencesQuerySchema, 'query'),
+    correspondenceController.listMine,
+  );
 
   router.get(
     '/declaration/:declarationId',
@@ -28,7 +32,11 @@ export function createCorrespondenceRoutes({
     correspondenceController.rematch,
   );
 
-  router.get('/:id', validate(correspondenceIdParamsSchema, 'params'), correspondenceController.getOne);
+  router.get(
+    '/:id',
+    validate(correspondenceIdParamsSchema, 'params'),
+    correspondenceController.getOne,
+  );
 
   for (const action of ['accept', 'refuse', 'verify']) {
     router.post(
@@ -39,7 +47,11 @@ export function createCorrespondenceRoutes({
     );
   }
 
-  router.post('/:id/recover', validate(correspondenceIdParamsSchema, 'params'), correspondenceController.recover);
+  router.post(
+    '/:id/recover',
+    validate(correspondenceIdParamsSchema, 'params'),
+    correspondenceController.recover,
+  );
 
   return router;
 }

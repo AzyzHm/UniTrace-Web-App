@@ -14,7 +14,11 @@ export function createNotificationRepository() {
     },
     // The user is part of the filter: nobody can mark someone else's notification.
     markRead: (userId, id) =>
-      Notification.findOneAndUpdate({ _id: id, user: userId }, { read: true }, { new: true }).lean(),
+      Notification.findOneAndUpdate(
+        { _id: id, user: userId },
+        { read: true },
+        { new: true },
+      ).lean(),
     markAllRead: (userId) => Notification.updateMany({ user: userId, read: false }, { read: true }),
   };
 }

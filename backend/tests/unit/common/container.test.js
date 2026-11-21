@@ -22,7 +22,10 @@ describe('createContainer', () => {
     expect(Object.keys(container.services).sort()).toEqual([
       'accountDeletionService',
       'authService',
+      'correspondenceService',
       'declarationService',
+      'matchingService',
+      'notificationService',
       'passwordChangeService',
       'passwordResetService',
       'profileService',
@@ -37,6 +40,8 @@ describe('createContainer', () => {
 
     expect((await request(app).get('/api/v1/users/me')).status).toBe(401);
     expect((await request(app).get('/api/v1/declarations/mine')).status).toBe(401);
+    expect((await request(app).get('/api/v1/correspondences/me')).status).toBe(401);
+    expect((await request(app).get('/api/v1/notifications')).status).toBe(401);
     expect((await request(app).post('/api/v1/auth/login').send({})).status).toBe(400);
   });
 
