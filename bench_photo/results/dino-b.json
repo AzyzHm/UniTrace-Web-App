@@ -1,0 +1,13 @@
+{
+  "key": "dino-b",
+  "model": "Xenova/dinov2-base",
+  "n": 4,
+  "top1": 100,
+  "top3": 100,
+  "mrr": 1,
+  "separation": 0.226,
+  "hardNegPct": 100,
+  "loadMs": 90248,
+  "msPerImage": 235.3,
+  "ramMB": 275
+}

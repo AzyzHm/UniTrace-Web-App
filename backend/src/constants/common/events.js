@@ -5,4 +5,6 @@ export const EVENTS = Object.freeze({
   DECLARATION_CREATED: 'declaration.created',
   DECLARATION_UPDATED: 'declaration.updated',
   DECLARATION_STATUS_CHANGED: 'declaration.statusChanged',
+  REPORT_CREATED: 'report.created',
+  REPORT_TREATED: 'report.treated',
 });

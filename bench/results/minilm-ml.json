@@ -1,0 +1,19 @@
+{
+  "key": "minilm-ml",
+  "model": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+  "n": 24,
+  "top1": 50,
+  "top3": 91.7,
+  "mrr": 0.711,
+  "separation": 0.219,
+  "loadMs": 37203,
+  "msPerText": 8.8,
+  "ramMB": 1072,
+  "byGroup": {
+    "en": 50,
+    "fr": 50,
+    "ar": 67,
+    "cross": 33
+  },
+  "hardNegPct": 96
+}

@@ -1,0 +1,29 @@
+[
+  {"group":"en","lost":"Black Nike backpack lost in the main library, second floor","found":"Black backpack with Nike logo found in the library","hardNegative":"Black Adidas backpack found in the cafeteria"},
+  {"group":"en","lost":"AirPods Pro, left earbud and charging case, lost in Amphitheater A","found":"White earbud case with one AirPod found in Amphitheater A","hardNegative":"Black wired headphones found in Amphitheater A"},
+  {"group":"en","lost":"Blue Hydro Flask water bottle left in classroom A4","found":"Blue metal water bottle found in room A4","hardNegative":"Blue plastic water bottle found in the cafeteria"},
+  {"group":"en","lost":"Casio scientific calculator with a scratched cover","found":"Casio calculator with a damaged cover found after the exam","hardNegative":"Texas Instruments graphing calculator found after the exam"},
+  {"group":"en","lost":"Grey hoodie with a university logo lost on the campus main alley","found":"Gray sweatshirt with the university logo found near the main alley","hardNegative":"Grey jacket without logo found near the parking"},
+  {"group":"en","lost":"White USB-C phone charger lost in the library","found":"White USB-C charging cable and adapter found in the library","hardNegative":"Black Lightning cable found in the library"},
+
+  {"group":"fr","lost":"Sac à dos noir Nike perdu à la bibliothèque","found":"Sac noir de marque Nike trouvé à la bibliothèque","hardNegative":"Sac à dos noir Adidas trouvé à la cafétéria"},
+  {"group":"fr","lost":"Écouteurs Apple blancs avec boîtier perdus en amphi A","found":"Boîtier d'écouteurs blanc Apple trouvé dans l'amphithéâtre A","hardNegative":"Casque filaire noir trouvé dans l'amphithéâtre A"},
+  {"group":"fr","lost":"Gourde bleue oubliée en salle A4","found":"Bouteille d'eau bleue en métal trouvée en classe A4","hardNegative":"Bouteille en plastique transparente trouvée à la cafétéria"},
+  {"group":"fr","lost":"Calculatrice scientifique Casio avec la coque rayée","found":"Calculatrice Casio abîmée trouvée après l'examen","hardNegative":"Calculatrice graphique Texas Instruments trouvée après l'examen"},
+  {"group":"fr","lost":"Pull gris avec le logo de l'université perdu dans l'allée principale","found":"Sweat gris avec logo de la fac trouvé près de l'allée principale","hardNegative":"Veste grise sans logo trouvée au parking"},
+  {"group":"fr","lost":"Chargeur de téléphone blanc USB-C perdu à la bibliothèque","found":"Câble et adaptateur USB-C blancs trouvés à la bibliothèque","hardNegative":"Câble Lightning noir trouvé à la bibliothèque"},
+
+  {"group":"ar","lost":"حقيبة ظهر سوداء من نايكي ضاعت في المكتبة","found":"وجدت حقيبة سوداء عليها شعار نايكي في المكتبة","hardNegative":"وجدت حقيبة ظهر سوداء من أديداس في الكافيتيريا"},
+  {"group":"ar","lost":"سماعات أبل بيضاء مع العلبة ضاعت في المدرج أ","found":"وجدت علبة سماعات بيضاء من أبل في المدرج أ","hardNegative":"وجدت سماعة رأس سوداء بسلك في المدرج أ"},
+  {"group":"ar","lost":"قارورة ماء زرقاء نسيتها في القاعة A4","found":"وجدت قارورة ماء زرقاء من المعدن في القسم A4","hardNegative":"وجدت قارورة ماء شفافة من البلاستيك في الكافيتيريا"},
+  {"group":"ar","lost":"آلة حاسبة علمية من كاسيو غطاؤها مخدوش","found":"وجدت آلة حاسبة كاسيو متضررة بعد الامتحان","hardNegative":"وجدت آلة حاسبة بيانية من تكساس بعد الامتحان"},
+  {"group":"ar","lost":"سترة رمادية عليها شعار الجامعة ضاعت في الممر الرئيسي","found":"وجدت سترة رمادية بشعار الجامعة قرب الممر الرئيسي","hardNegative":"وجدت جاكيت رمادي بدون شعار قرب موقف السيارات"},
+  {"group":"ar","lost":"شاحن هاتف أبيض ضاع في المكتبة","found":"وجدت كابل شحن أبيض مع محول في المكتبة","hardNegative":"وجدت كابل شحن أسود في المكتبة"},
+
+  {"group":"cross","lost":"حقيبة ظهر سوداء في المكتبة","found":"Black backpack found near the library","hardNegative":"Black backpack found in the cafeteria"},
+  {"group":"cross","lost":"Écouteurs Apple blancs avec boîtier","found":"AirPods Pro, left earbud and case","hardNegative":"Black wired headphones"},
+  {"group":"cross","lost":"Blue water bottle lost in classroom A4","found":"قارورة ماء زرقاء وجدت في القاعة A4","hardNegative":"قارورة ماء حمراء وجدت في الكافيتيريا"},
+  {"group":"cross","lost":"آلة حاسبة كاسيو علمية","found":"Calculatrice scientifique Casio trouvée après l'examen","hardNegative":"Calculatrice graphique Texas Instruments"},
+  {"group":"cross","lost":"Pull gris avec logo de l'université","found":"Gray hoodie with the university logo","hardNegative":"Red jacket without logo"},
+  {"group":"cross","lost":"White USB-C phone charger","found":"شاحن هاتف أبيض من نوع USB-C","hardNegative":"شاحن هاتف أسود من نوع Lightning"}
+]
