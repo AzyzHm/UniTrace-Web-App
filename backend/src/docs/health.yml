@@ -1,0 +1,26 @@
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Health check
+      description: |
+        Liveness probe for monitoring and deployment checks.
+
+        - Lives **outside `/api/v1`**, so the global rate limiter never throttles a probe.
+        - No authentication.
+        - Does not query the database: it only proves the HTTP server is running.
+      security: []
+      responses:
+        '200':
+          description: The server is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                    example: ok
