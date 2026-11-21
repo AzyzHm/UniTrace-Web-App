@@ -32,9 +32,9 @@ describe('createContainer', () => {
       'passwordChangeService',
       'passwordResetService',
       'profileService',
+      'reportService',
       'savedSearchService',
       'searchService',
-      'reportService',
       'sessionService',
       'statsService',
     ]);

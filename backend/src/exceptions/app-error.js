@@ -76,7 +76,6 @@ export class RateLimitedError extends AppError {
   }
 }
 
-
 // Paramètre inconnu ou invalide (levée par middlewares/search/validate-search-query.js).
 export class InvalidQueryError extends AppError {
   constructor(message = 'Invalid search query', details = []) {

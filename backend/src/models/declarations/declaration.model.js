@@ -108,7 +108,7 @@ declarationSchema.index({ type: 1, category: 1, status: 1, date: -1 });
 // Serves findPageByOwner: the owner filter and the sort on createdAt.
 declarationSchema.index({ owner: 1, createdAt: -1 });
 
-// The search indexes are defined in a separate file so that the search service can inspect them 
+// The search indexes are defined in a separate file so that the search service can inspect them
 for (const { key, options } of SEARCH_INDEXES) {
   declarationSchema.index(key, options);
 }

@@ -173,7 +173,7 @@ export function createApiRouter({
         savedSearchSchema,
         rateLimiters,
       }),
-      );
+    );
   }
   if (requireAuth && correspondenceService) {
     router.use(
