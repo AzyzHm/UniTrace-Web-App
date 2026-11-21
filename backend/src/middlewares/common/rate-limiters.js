@@ -36,6 +36,10 @@ function emailOf(req) {
     : '';
 }
 
+function userKey(req) {
+  return req.user?.id ? `user:${req.user.id}` : ipKeyGenerator(req.ip);
+}
+
 export function createRateLimiters({ limits = {} } = {}) {
   const config = { ...RATE_LIMITS, ...limits };
 
@@ -57,5 +61,8 @@ export function createRateLimiters({ limits = {} } = {}) {
 
     // Counts every request, successful or not, because each one can send an email.
     emailSending: build(config.emailSending),
+
+    search: build(config.search, { keyGenerator: userKey }),
+    searchFilters: build(config.searchFilters, { keyGenerator: userKey }),
   };
 }

@@ -75,3 +75,31 @@ export class RateLimitedError extends AppError {
     this.retryAfterSeconds = retryAfterSeconds;
   }
 }
+
+// Paramètre inconnu ou invalide (levée par middlewares/search/validate-search-query.js).
+export class InvalidQueryError extends AppError {
+  constructor(message = 'Invalid search query', details = []) {
+    super(message, { statusCode: 400, code: 'INVALID_QUERY', details });
+  }
+}
+
+// Tri par pertinence demandé sans texte de recherche (levée par search.service.js).
+export class RelevanceRequiresQueryError extends AppError {
+  constructor(message = 'sort=relevance requires a text query (q)') {
+    super(message, { statusCode: 400, code: 'RELEVANCE_REQUIRES_Q' });
+  }
+}
+
+// Un non-admin a demandé le statut hidden ou deleted (levée par search.service.js).
+export class StatusForbiddenError extends AppError {
+  constructor(message = 'You are not allowed to search these statuses', details = []) {
+    super(message, { statusCode: 400, code: 'STATUS_FORBIDDEN', details });
+  }
+}
+
+//  L'utilisateur a déjà le maximum de recherches sauvegardées
+export class SavedSearchLimitError extends AppError {
+  constructor(message = 'You have reached the maximum number of saved searches') {
+    super(message, { statusCode: 409, code: 'SAVED_SEARCH_LIMIT' });
+  }
+}

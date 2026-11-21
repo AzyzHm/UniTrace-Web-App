@@ -6,6 +6,7 @@ import {
   DEFAULT_DECLARATION_STATUS,
 } from '../../constants/declarations/declaration-status.js';
 import { DECLARATION_TYPE_VALUES } from '../../constants/declarations/declaration-types.js';
+import { SEARCH_INDEXES } from './declaration-search-indexes.js';
 
 const declarationSchema = new mongoose.Schema(
   {
@@ -106,5 +107,10 @@ declarationSchema.index({ type: 1, category: 1, status: 1, date: -1 });
 
 // Serves findPageByOwner: the owner filter and the sort on createdAt.
 declarationSchema.index({ owner: 1, createdAt: -1 });
+
+// The search indexes are defined in a separate file so that the search service can inspect them
+for (const { key, options } of SEARCH_INDEXES) {
+  declarationSchema.index(key, options);
+}
 
 export const Declaration = mongoose.model('Declaration', declarationSchema);

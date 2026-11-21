@@ -2,6 +2,7 @@ import { buildAdmin } from './admin.js';
 import { buildAuth } from './auth.js';
 import { buildCommon } from './common.js';
 import { buildDeclarations } from './declarations.js';
+import { buildSearch } from './search.js';
 import { buildUsers } from './users.js';
 import { buildMatching } from './matching.js';
 
@@ -19,6 +20,7 @@ export function createContainer({ config, logger = silentLogger, clock, override
   const auth = buildAuth({ config, common, use });
   const users = buildUsers({ common, auth });
   const declarations = buildDeclarations({ config, common, use });
+  const search = buildSearch({ common, use });
   const matching = buildMatching({ common, declarations, use });
   const admin = buildAdmin({ common, auth, declarations, use });
 
@@ -30,6 +32,7 @@ export function createContainer({ config, logger = silentLogger, clock, override
       ...users.services,
       ...declarations.services,
       ...matching.services,
+      ...search.services,
       ...admin.services,
     },
     embeddingService: matching.embeddingService,
@@ -40,6 +43,8 @@ export function createContainer({ config, logger = silentLogger, clock, override
     passwordHasher: auth.passwordHasher,
     tokenService: auth.tokenService,
     declarationRepository: declarations.declarationRepository,
+    searchRepository: search.searchRepository,
+    savedSearchRepository: search.savedSearchRepository,
     pictureStorage: declarations.pictureStorage,
   });
 }

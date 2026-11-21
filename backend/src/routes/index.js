@@ -5,6 +5,7 @@ import { createReportController } from '../controllers/admin/report.controller.j
 import { createStatsController } from '../controllers/admin/stats.controller.js';
 import { createAuthController } from '../controllers/auth/auth.controller.js';
 import { createDeclarationController } from '../controllers/declarations/declaration.controller.js';
+import { createSearchController } from '../controllers/search/search.controller.js';
 import { createCorrespondenceController } from '../controllers/matching/correspondence.controller.js';
 import { createNotificationController } from '../controllers/notifications/notification.controller.js';
 import { createUserController } from '../controllers/users/user.controller.js';
@@ -46,6 +47,8 @@ import {
   pictureBodySchema,
   updateDeclarationSchema,
 } from '../validators/declarations/declaration.validator.js';
+import { savedSearchSchema } from '../validators/search/saved-search.validator.js';
+import { searchQuerySchema } from '../validators/search/search.validator.js';
 import {
   correspondenceDeclarationParamsSchema,
   correspondenceIdParamsSchema,
@@ -64,6 +67,7 @@ import {
 import { createAdminRoutes } from './admin/admin.routes.js';
 import { createAuthRoutes } from './auth/auth.routes.js';
 import { createDeclarationRoutes } from './declarations/declaration.routes.js';
+import { createSearchRoutes } from './search/search.routes.js';
 import { createCorrespondenceRoutes } from './matching/correspondence.routes.js';
 import { createNotificationRoutes } from './notifications/notification.routes.js';
 import { createReportRoutes } from './reports/report.routes.js';
@@ -84,6 +88,8 @@ export function createApiRouter({
     passwordChangeService,
     accountDeletionService,
     declarationService,
+    searchService,
+    savedSearchService,
     correspondenceService,
     notificationService,
     adminUserService,
@@ -157,6 +163,18 @@ export function createApiRouter({
     );
   }
 
+  if (requireAuth && searchService && savedSearchService) {
+    router.use(
+      '/search',
+      createSearchRoutes({
+        searchController: createSearchController({ searchService, savedSearchService }),
+        requireAuth,
+        searchQuerySchema,
+        savedSearchSchema,
+        rateLimiters,
+      }),
+    );
+  }
   if (requireAuth && correspondenceService) {
     router.use(
       '/correspondences',

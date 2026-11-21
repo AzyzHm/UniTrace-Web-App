@@ -9,3 +9,13 @@ export const logger = pino({
     transport: { target: 'pino-pretty' },
   }),
 });
+
+/*
+Level	Meaning	Example
+trace	Very detailed information	Detailed execution steps
+debug	Debugging	Variable values
+info	Normal events	Server started
+warn	Potential problem	Too many failed attempts
+error	Error occurred	Database operation failed
+fatal	Critical failure	Application cannot continue 
+*/
