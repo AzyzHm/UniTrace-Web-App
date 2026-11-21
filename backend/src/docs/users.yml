@@ -1,0 +1,422 @@
+paths:
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      operationId: getMyProfile
+      summary: Get my profile
+      description: |
+        Returns the connected user, read from the access token. `password`, `isActive` and
+        `deletedAt` are never returned.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The connected user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+              example:
+                user:
+                  id: '665f1c2e9b1d8a0012a4c7e1'
+                  username: sara.k
+                  email: sara.k@isamm.uma.tn
+                  phone: '+21655000001'
+                  role: user
+                  isEmailVerified: true
+                  createdAt: '2026-11-02T09:15:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Users]
+      operationId: updateMyProfile
+      summary: Update my profile
+      description: |
+        Partial update: send only the fields to change, at least one. `role`, `password` and any
+        other field are rejected.
+
+        **Rules**
+        - Sending `phone: null` removes the phone number.
+        - A value equal to the current one is ignored (no write).
+        - **Changing the email** marks the new address as **unverified** and emails it a 6-digit
+          code. The response then carries a `message` telling the client whether the code was sent.
+          Until the new address is verified, `login` answers `EMAIL_NOT_VERIFIED`. Sessions that
+          are already open keep working.
+        - The email must belong to a university domain, like at registration.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            examples:
+              phoneOnly:
+                summary: Change the phone number
+                value:
+                  phone: '+21655000010'
+              removePhone:
+                summary: Remove the phone number
+                value:
+                  phone: null
+              newEmail:
+                summary: Change the email (needs re-verification)
+                value:
+                  email: sara.new@isamm.uma.tn
+      responses:
+        '200':
+          description: |
+            Profile updated. `message` is present only when the email changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateProfileResponse'
+              examples:
+                phoneChanged:
+                  summary: Phone changed
+                  value:
+                    user:
+                      id: '665f1c2e9b1d8a0012a4c7e1'
+                      username: sara.k
+                      email: sara.k@isamm.uma.tn
+                      phone: '+21655000010'
+                      role: user
+                      isEmailVerified: true
+                      createdAt: '2026-11-02T09:15:00.000Z'
+                emailChangedCodeSent:
+                  summary: Email changed, code sent
+                  value:
+                    user:
+                      id: '665f1c2e9b1d8a0012a4c7e1'
+                      username: sara.k
+                      email: sara.new@isamm.uma.tn
+                      phone: '+21655000001'
+                      role: user
+                      isEmailVerified: false
+                      createdAt: '2026-11-02T09:15:00.000Z'
+                    message: Your email address was changed. Enter the code sent to the new address to verify it.
+                emailChangedCodeNotSent:
+                  summary: Email changed, code could not be sent
+                  value:
+                    user:
+                      id: '665f1c2e9b1d8a0012a4c7e1'
+                      username: sara.k
+                      email: sara.new@isamm.uma.tn
+                      phone: '+21655000001'
+                      role: user
+                      isEmailVerified: false
+                      createdAt: '2026-11-02T09:15:00.000Z'
+                    message: Your email address was changed, but the verification code could not be sent. Request a new code in a moment.
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. Empty body, invalid value, or an unknown field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyBody:
+                  summary: Nothing to update
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: ''
+                          message: Send at least one field to update
+                badPhone:
+                  summary: Invalid phone number
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: phone
+                          message: Phone must be 8 to 15 digits, optionally starting with "+"
+                roleRejected:
+                  summary: Unknown field (role)
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: role
+                          message: role is not allowed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '409':
+          description: |
+            **409 `CONFLICT`**. The new email or username belongs to another account.
+            `details[0].field` says which one.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emailTaken:
+                  summary: Email already used
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: Profile could not be updated
+                      details:
+                        - field: email
+                          message: Email is already used
+                usernameTaken:
+                  summary: Username already taken
+                  value:
+                    error:
+                      code: CONFLICT
+                      message: Profile could not be updated
+                      details:
+                        - field: username
+                          message: Username is already taken
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Users]
+      operationId: deleteMyAccount
+      summary: Delete my account
+      description: |
+        Deletes the account after the user **re-enters the password**. The deletion is an
+        **anonymization**, not a removal, so the history of declarations stays consistent.
+
+        **What happens**
+        - The username becomes `deleted_user_<id>`, the email becomes
+          `deleted_<id>@deleted.invalid`, the phone is cleared and the password is locked. The real
+          username and email can be used again by a new signup.
+        - All sessions (refresh tokens) and pending codes are deleted, and the cookie is cleared.
+          The access token already issued is refused from now on (401), because the user is
+          reloaded on every request.
+        - The user's `pending` and `expired` declarations become `deleted`. Declarations that are
+          `matched`, `resolved` or `hidden` keep their status for history, but their `privateInfo`
+          is erased. Every picture is removed from the server.
+        - Other users see such declarations with `ownerDeleted: true` (see
+          `GET /api/v1/declarations/{id}`).
+
+        A suspended user cannot delete their account (403).
+
+        **Rate limit:** 100 failed requests per 15 minutes per IP (wrong passwords are limited like
+        a login).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+            example:
+              password: Passw0rdDemo
+      responses:
+        '204':
+          description: Account anonymized. No body.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearRefreshCookie'
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. The password is missing or does not match the account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                wrongPassword:
+                  summary: Wrong password
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: password
+                          message: Password is incorrect
+                missingPassword:
+                  summary: Password missing
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: password
+                          message: password is required
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/users/me/password:
+    patch:
+      tags: [Users]
+      operationId: changeMyPassword
+      summary: Change my password
+      description: |
+        Changes the password after checking the current one.
+
+        **Effects:** every other device is logged out (all refresh tokens are deleted). This device
+        receives a **new refresh cookie**, so the user stays connected here. The current access
+        token stays valid until it expires.
+
+        A wrong current password is a **400** (with the field named), not a 401: the user is
+        correctly authenticated, only the form value is wrong.
+
+        **Rate limit:** 100 failed requests per 15 minutes per IP (wrong passwords are limited like
+        a login).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+            example:
+              currentPassword: Passw0rdDemo
+              newPassword: NewPassw0rd1
+              confirmPassword: NewPassw0rd1
+      responses:
+        '200':
+          description: Password changed. Other devices are logged out.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetRefreshCookie'
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Your password has been changed. Your other devices were logged out.
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. Wrong current password, weak new password, confirmation
+            mismatch, or new password equal to the current one.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                wrongCurrentPassword:
+                  summary: Wrong current password
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: currentPassword
+                          message: Current password is incorrect
+                samePassword:
+                  summary: New password equals the current one
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: newPassword
+                          message: New password must be different from the current password
+                passwordsDoNotMatch:
+                  summary: Passwords do not match
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: confirmPassword
+                          message: Passwords do not match
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    UpdateProfileRequest:
+      type: object
+      description: Partial update. At least one field is required.
+      minProperties: 1
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[a-zA-Z0-9_.]+$'
+          description: Letters, digits, `_` and `.`. Unique, case-insensitive.
+          example: sara.k
+        email:
+          type: string
+          format: email
+          description: University email address. Changing it requires a new verification.
+          example: sara.new@isamm.uma.tn
+        phone:
+          type: string
+          nullable: true
+          pattern: '^\+?[0-9]{8,15}$'
+          description: 8 to 15 digits, optionally starting with `+`. `null` removes the number.
+          example: '+21655000010'
+
+    UpdateProfileResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        message:
+          type: string
+          description: Only present when the email changed.
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword, confirmPassword]
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          maxLength: 72
+          example: Passw0rdDemo
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: |
+            8 to 72 characters with at least one letter and one digit. Must differ from the current
+            password.
+          example: NewPassw0rd1
+        confirmPassword:
+          type: string
+          format: password
+          description: Must equal `newPassword`.
+          example: NewPassw0rd1
+
+    DeleteAccountRequest:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          format: password
+          maxLength: 72
+          description: The current password, as a confirmation.
+          example: Passw0rdDemo
