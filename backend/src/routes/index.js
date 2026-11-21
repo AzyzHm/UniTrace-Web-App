@@ -179,6 +179,10 @@ export function createApiRouter({
         requireAuth,
         notificationIdParamsSchema,
         listNotificationsQuerySchema,
+      }),
+    );
+  }
+
   if (requireAuth && reportService) {
     router.use(
       '/reports',

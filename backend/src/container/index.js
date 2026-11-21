@@ -30,10 +30,9 @@ export function createContainer({ config, logger = silentLogger, clock, override
       ...users.services,
       ...declarations.services,
       ...matching.services,
-       ...admin.services,
+      ...admin.services,
     },
-    embeddingService: matching.embeddingService
-    },
+    embeddingService: matching.embeddingService,
     requireAuth: auth.requireAuth,
 
     eventBus: common.eventBus,
