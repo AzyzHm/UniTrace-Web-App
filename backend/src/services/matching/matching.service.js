@@ -130,7 +130,13 @@ export function createMatchingService({
       for (const candidate of await repo.findCandidates(decl, config)) {
         try {
           const other = await vectorize(candidate);
-          const score = calculateScore(isLost ? mine : other, isLost ? other : mine, config);
+          // CHANGED: config and logger are passed so every score is printed in the terminal.
+          const score = calculateScore(
+            isLost ? mine : other,
+            isLost ? other : mine,
+            config,
+            logger,
+          );
           if (passesThreshold(score, config)) scored.push({ candidate, score });
         } catch (err) {
           // One broken candidate must not stop the others.
