@@ -1,0 +1,432 @@
+openapi: 3.0.3
+info:
+  title: UniTrace API - Matching and Notifications
+  version: 1.0.0
+  description: |
+    Automatic matching between lost and found declarations (description, location, date and
+    picture similarity), the correspondence lifecycle, and user notifications.
+    A correspondence is visible only to the two owners (and admins). Anyone else gets 404.
+    Declaration endpoints are documented separately; declarations appear here only as embedded objects.
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Matching
+  - name: Notifications
+
+paths:
+  /api/v1/correspondences/me:
+    get:
+      tags: [Matching]
+      summary: List my correspondences
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/CorrespondenceStatus' }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 50, default: 10 },
+          }
+      responses:
+        '200':
+          description: Page of correspondences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Correspondence' }
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  totalPages: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/v1/correspondences/declaration/{declarationId}:
+    get:
+      tags: [Matching]
+      summary: List the correspondences of one of my declarations
+      description: Owner or admin only. Otherwise 404.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/DeclarationId' }]
+      responses:
+        '200':
+          description: Correspondences of the declaration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Correspondence' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/correspondences/declaration/{declarationId}/rematch:
+    post:
+      tags: [Matching]
+      summary: Recompute the matches of a declaration
+      description: Owner or admin only. Runs the matching again.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/DeclarationId' }]
+      responses:
+        '200':
+          description: Matching done
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    {
+                      type: integer,
+                      description: Number of matches created or reopened,
+                      example: 3,
+                    }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/correspondences/{id}:
+    get:
+      tags: [Matching]
+      summary: Get a correspondence with its history
+      description: Only the two owners (or an admin) can see it. Others get 404.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Correspondence including its event history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  correspondence: { $ref: '#/components/schemas/Correspondence' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/correspondences/{id}/accept:
+    post:
+      tags: [Matching]
+      summary: Accept a match
+      description: |
+        The status becomes `proposed` after the first acceptance and `accepted` once both sides
+        accepted. Only one accepted correspondence is allowed per declaration at a time.
+        The other owner is notified.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { $ref: '#/components/requestBodies/Reaction' }
+      responses:
+        '200': { $ref: '#/components/responses/IdAndStatus' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/correspondences/{id}/refuse:
+    post:
+      tags: [Matching]
+      summary: Refuse a match
+      description: The status becomes `refused`. A refused match reopens only if its score rises by 0.10.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { $ref: '#/components/requestBodies/Reaction' }
+      responses:
+        '200': { $ref: '#/components/responses/IdAndStatus' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/correspondences/{id}/verify:
+    post:
+      tags: [Matching]
+      summary: Ask for more verification
+      description: The status becomes `to_verify` (unless the other side already refused).
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody: { $ref: '#/components/requestBodies/Reaction' }
+      responses:
+        '200': { $ref: '#/components/responses/IdAndStatus' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/correspondences/{id}/recover:
+    post:
+      tags: [Matching]
+      summary: Confirm the handover (my side)
+      description: |
+        Requires status `accepted`. Each owner confirms for their own declaration, which becomes
+        resolved. When both confirmed, the correspondence is `resolved` and the other possible
+        matches of these declarations are closed.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/IdAndStatus' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: List my notifications
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 50, default: 20 },
+          }
+        - { name: unreadOnly, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: Page of notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Notification' }
+                  page: { type: integer }
+                  limit: { type: integer }
+                  total: { type: integer }
+                  unread: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/v1/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark one notification as read
+      description: Returns 404 if the notification does not exist or belongs to another user.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notification: { $ref: '#/components/schemas/Notification' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all my notifications as read
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Done, no content }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' }
+    DeclarationId:
+      name: declarationId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[0-9a-fA-F]{24}$' }
+
+  requestBodies:
+    Reaction:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              comment: { type: string, maxLength: 500, description: Optional, trimmed }
+
+  responses:
+    IdAndStatus:
+      description: Correspondence id and its new status
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id: { type: string, example: 6b00c15180246259925fb47e }
+              status: { $ref: '#/components/schemas/CorrespondenceStatus' }
+    ValidationError:
+      description: Invalid input
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Unauthorized:
+      description: Missing or invalid token
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: Not allowed
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Not found (also returned when the caller is not a participant)
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Conflict:
+      description: Action not allowed in the current status (closed, refused, or another match already accepted)
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: NOT_FOUND }
+            message: { type: string }
+            details: { type: array, items: {} }
+
+    CorrespondenceStatus:
+      type: string
+      enum: [proposed, accepted, refused, to_verify, resolved, closed]
+
+    Confidence:
+      type: string
+      enum: [high, medium, low]
+
+    Decision:
+      type: string
+      enum: [accept, refuse, verify]
+
+    Scores:
+      type: object
+      description: Each score is between 0 and 1. null means the signal was missing and was skipped.
+      properties:
+        description: { type: number, minimum: 0, maximum: 1 }
+        location: { type: number, minimum: 0, maximum: 1, nullable: true }
+        date: { type: number, minimum: 0, maximum: 1 }
+        image: { type: number, minimum: 0, maximum: 1, nullable: true }
+        attributes: { type: number, minimum: 0, maximum: 1, nullable: true }
+
+    Reaction:
+      type: object
+      properties:
+        decision: { allOf: [{ $ref: '#/components/schemas/Decision' }], nullable: true }
+        comment: { type: string, nullable: true }
+        at: { type: string, format: date-time, nullable: true }
+        recoveredAt: { type: string, format: date-time, nullable: true }
+
+    DeclarationSummary:
+      type: object
+      description: |
+        Read-only public view of a declaration embedded in a correspondence. It never includes
+        privateInfo or the owner. For a sensitive category, picture is always null.
+      properties:
+        id: { type: string }
+        title: { type: string }
+        type: { type: string, enum: [lost, found] }
+        description: { type: string }
+        category: { type: string }
+        attributes: { type: object, additionalProperties: true }
+        picture:
+          {
+            type: string,
+            nullable: true,
+            example: /api/v1/declarations/6b01c7d9f4c7ac96ad3ec1d0/picture,
+          }
+        status: { type: string }
+        date: { type: string, format: date-time }
+        location: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Contact:
+      type: object
+      nullable: true
+      description: Other party identity. Filled only when status is accepted or resolved.
+      properties:
+        username: { type: string }
+        email: { type: string }
+        phone: { type: string, nullable: true }
+
+    HistoryEntry:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            [
+              created,
+              proposal_sent,
+              score_updated,
+              accepted_by_one,
+              accepted,
+              refused,
+              verification_requested,
+              feedback,
+              reopened,
+              status_changed,
+              recovered,
+              closed,
+            ]
+        data: { type: object, additionalProperties: true }
+        at: { type: string, format: date-time }
+
+    Correspondence:
+      type: object
+      properties:
+        id: { type: string }
+        status: { $ref: '#/components/schemas/CorrespondenceStatus' }
+        confidence: { $ref: '#/components/schemas/Confidence' }
+        globalScore: { type: number, minimum: 0, maximum: 1 }
+        scores: { $ref: '#/components/schemas/Scores' }
+        explanation:
+          { type: string, example: 'Description 82%, location 90%, date 100%, picture 78%' }
+        mySide: { type: string, enum: [lost, found], nullable: true }
+        myReaction: { $ref: '#/components/schemas/Reaction' }
+        lost: { $ref: '#/components/schemas/DeclarationSummary' }
+        found: { $ref: '#/components/schemas/DeclarationSummary' }
+        contact: { $ref: '#/components/schemas/Contact' }
+        history:
+          type: array
+          description: Only returned by GET /correspondences/{id}
+          items: { $ref: '#/components/schemas/HistoryEntry' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: string }
+        type:
+          type: string
+          enum:
+            [
+              new_correspondence,
+              correspondence_accepted,
+              correspondence_refused,
+              verification_requested,
+              object_recovered,
+              correspondence_closed,
+            ]
+        message: { type: string }
+        correspondenceId: { type: string, nullable: true }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
