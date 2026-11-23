@@ -7,12 +7,12 @@ import { buildTestApp } from '../../helpers/build-test-app.js';
 const SAMPLE_ID = '665f2a7b9b1d8a0012a4c801';
 const METHODS = ['get', 'post', 'put', 'patch', 'delete'];
 
-// Every documented operation as { method, url }, with path parameters filled in.
+// Every documented operation as { method, url }, with every path parameter filled in.
 function documentedOperations() {
   return Object.entries(swaggerSpec.paths).flatMap(([route, item]) =>
     METHODS.filter((method) => item[method]).map((method) => ({
       method,
-      url: route.replace('{id}', SAMPLE_ID),
+      url: route.replace(/\{[^}]+\}/g, SAMPLE_ID),
     })),
   );
 }
@@ -27,6 +27,8 @@ describe('API documentation', () => {
         '/api/v1/users/me',
         '/api/v1/declarations',
         '/api/v1/declarations/{id}/status',
+        '/api/v1/correspondences/{id}/accept',
+        '/api/v1/notifications/read-all',
       ]),
     );
     expect(swaggerSpec.components.securitySchemes.bearerAuth).toBeDefined();
