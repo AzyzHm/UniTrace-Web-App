@@ -7,9 +7,16 @@ import swaggerUi from 'swagger-ui-express';
 // the process is started from.
 const DOCS_DIR = import.meta.dirname;
 
-// One file per area, plus the shared building blocks. To document a new area (search, matching,
-// admin...), create its YAML file here and add its name to this list.
-const DOC_FILES = ['components.yml', 'health.yml', 'auth.yml', 'users.yml', 'declarations.yml'];
+// One file per area, plus the shared building blocks. To document a new area (search, admin...),
+// create its YAML file here and add its name to this list.
+const DOC_FILES = [
+  'components.yml',
+  'health.yml',
+  'auth.yml',
+  'users.yml',
+  'declarations.yml',
+  'matching-api.yml',
+];
 
 // swagger-jsdoc resolves its inputs with glob, which only understands forward slashes. Without
 // this conversion the paths break on Windows.
@@ -23,8 +30,8 @@ const definition = {
     description: [
       'REST API of **UniTrace**, the lost and found platform of a university campus.',
       '',
-      'This page documents the **health check, authentication, users and declarations**.',
-      'Search, matching, notifications and administration are not documented here yet.',
+      'This page documents the **health check, authentication, users, declarations, matching and',
+      'notifications**. Search and administration are not documented here yet.',
       '',
       '### Try it',
       '1. Open `POST /api/v1/auth/login`, click **Try it out** and send a seeded account',
@@ -63,6 +70,15 @@ const definition = {
       name: 'Declaration pictures',
       description:
         'Pictures are served and managed by controlled routes that follow the visibility rules of the declaration.',
+    },
+    {
+      name: 'Matching',
+      description:
+        'Possible matches between a lost and a found declaration: list, read with history, accept, refuse, ask for verification and confirm the handover. Visible only to the two owners and admins.',
+    },
+    {
+      name: 'Notifications',
+      description: 'The in-app notifications of the connected user: list and mark as read.',
     },
   ],
 };
