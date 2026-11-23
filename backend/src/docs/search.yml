@@ -1,0 +1,908 @@
+paths:
+  /api/v1/search/declarations:
+    get:
+      tags: [Search]
+      operationId: searchDeclarations
+      summary: Search declarations (combined filters)
+      description: |
+        The main search. Every filter is optional and **all the filters you send are combined with
+        AND**. The result is always one page, never the whole collection.
+
+        **What you get**
+        - Only the **public view** of a declaration, whoever you are: no `privateInfo`, no owner, not
+          even for the owner or an admin. Use `GET /api/v1/declarations/{id}` for the owner view.
+        - A `student_card_id` declaration never shows its picture, and does not count as "with
+          photo" in `hasPhoto`.
+
+        **Which statuses are searched**
+        - Without `status`, only `pending` and `matched` declarations (the active ones).
+        - `hidden` and `deleted` can only be searched by an **admin**. For anybody else the request is
+          refused with a 400 `STATUS_FORBIDDEN`, it is not silently dropped.
+        - Soft deleted declarations are never returned, except to an admin who asks for `deleted`.
+
+        **Text search (`q`)**
+        - Uses the French text index on `title` and `description`.
+        - A text shorter than 2 characters is **ignored** (no error, `appliedFilters.q` is `null`). A
+          text longer than 200 characters is a 400.
+        - `sort=relevance` needs a usable `q`, otherwise 400 `RELEVANCE_REQUIRES_Q`.
+
+        **Other filters**
+        - `location` is tried **exactly** first. If nothing matches, the search is repeated ignoring
+          case and accents, and the text may be only part of the place ("bibliotheque" finds "Main
+          Bibliothèque, 2nd floor"). This fallback is **not applied when `facets` is requested**.
+        - `color` matches `attributes.color` exactly.
+        - `dateFrom` and `dateTo` filter the day the item was lost or found. A date-only `dateTo`
+          includes the whole day. One bound is enough.
+
+        **Facets (`facets=category,type,status`)**
+        Adds a `facets` object with the number of results per value, computed on the **same filters**
+        as the results, in one MongoDB query. It is opt-in: without `facets` the response has no
+        `facets` key. At most 3 facets per request, at most 20 values per facet, sorted by count.
+        The `status` facet only counts the statuses you are allowed to search. The counts cover **all
+        matching declarations, not only the current page**, so use filters rather than an empty
+        search.
+
+        **Pagination and sorting**
+        Page size is at most 50. A page after the last one is a normal 200 with an empty `data`
+        (`noResults` stays `false`). `noResults` is `true` only when **nothing at all** matches, so the
+        interface can show a "no result" state. The default sort is `date_desc`. Ties are broken by id,
+        so paging never repeats or skips an item.
+
+        **Limits.** 50 searches per minute per user (on top of the global limit).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Free text searched in the title and the description.
+          schema:
+            type: string
+            maxLength: 200
+          example: sac noir
+        - name: type
+          in: query
+          description: Only lost or only found declarations.
+          schema:
+            $ref: '#/components/schemas/DeclarationType'
+        - name: category
+          in: query
+          description: One category.
+          schema:
+            $ref: '#/components/schemas/DeclarationCategory'
+        - name: status
+          in: query
+          description: |
+            One or several statuses, comma separated (`status=pending,matched`) or repeated
+            (`status=pending&status=matched`). Default `pending,matched`. `hidden` and `deleted` are
+            reserved to admins.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/DeclarationStatus'
+        - name: location
+          in: query
+          description: Place, as free text. Exact match first, then a looser match (see above).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 150
+          example: Main library
+        - name: color
+          in: query
+          description: Color, as stored in the `color` attribute of the declaration.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          example: black
+        - name: dateFrom
+          in: query
+          description: Earliest day the item was lost or found (`YYYY-MM-DD` or an ISO timestamp).
+          schema:
+            type: string
+            format: date
+          example: '2026-11-16'
+        - name: dateTo
+          in: query
+          description: |
+            Latest day the item was lost or found. Cannot be before `dateFrom`. A date-only value
+            includes that whole day.
+          schema:
+            type: string
+            format: date
+          example: '2026-11-22'
+        - name: hasPhoto
+          in: query
+          description: '`true`: only declarations with a visible picture. `false`: only those without.'
+          schema:
+            type: boolean
+        - name: sort
+          in: query
+          description: |
+            - `date_desc` (default) / `date_asc`: the day the item was lost or found.
+            - `createdAt_desc` / `createdAt_asc`: when the declaration was published.
+            - `relevance`: best text match first. Requires `q`.
+          schema:
+            $ref: '#/components/schemas/SearchSort'
+        - name: page
+          in: query
+          description: Page number, starting at 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: facets
+          in: query
+          description: |
+            Facets to compute, comma separated (`facets=category,type`) or repeated. At most 3.
+            Leave it out to get no `facets` in the response.
+          style: form
+          explode: false
+          schema:
+            type: array
+            maxItems: 3
+            items:
+              $ref: '#/components/schemas/SearchFacetName'
+      responses:
+        '200':
+          description: One page of public declarations. An empty `data` is a normal 200.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchDeclarationsResponse'
+              examples:
+                withFacets:
+                  summary: Lost items matching "sac", with category facets
+                  value:
+                    data:
+                      - id: '665f2a7b9b1d8a0012a4c801'
+                        title: Black Nike backpack
+                        type: lost
+                        description: Black Nike backpack with a red keychain, lost Monday afternoon.
+                        category: wallet_bag
+                        attributes:
+                          brand: Nike
+                          color: black
+                        picture: /api/v1/declarations/665f2a7b9b1d8a0012a4c801/picture
+                        status: pending
+                        date: '2026-11-18T00:00:00.000Z'
+                        location: Main library, 2nd floor
+                        createdAt: '2026-11-19T08:30:00.000Z'
+                    facets:
+                      category:
+                        - key: wallet_bag
+                          label: Portefeuille / sac
+                          count: 4
+                        - key: other
+                          label: Autre
+                          count: 1
+                    pagination:
+                      page: 1
+                      limit: 20
+                      total: 5
+                      totalPages: 1
+                      hasNext: false
+                      hasPrev: false
+                    sort:
+                      field: date
+                      order: desc
+                    appliedFilters:
+                      q: sac
+                      type: lost
+                      status: [pending, matched]
+                    noResults: false
+                noResult:
+                  summary: Nothing matches
+                  value:
+                    data: []
+                    pagination:
+                      page: 1
+                      limit: 20
+                      total: 0
+                      totalPages: 0
+                      hasNext: false
+                      hasPrev: false
+                    sort:
+                      field: date
+                      order: desc
+                    appliedFilters:
+                      q: parapluie
+                      status: [pending, matched]
+                    noResults: true
+        '400':
+          description: |
+            **400**. The request is refused before it reaches the database. Three codes:
+            - `INVALID_QUERY`: an unknown or invalid parameter. `details` lists all of them at once. An
+              unknown parameter is rejected, so a typo such as `?categorie=phone` is not silently
+              ignored.
+            - `RELEVANCE_REQUIRES_Q`: `sort=relevance` without a usable `q`.
+            - `STATUS_FORBIDDEN`: a user asked for `hidden` or `deleted`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unknownParameter:
+                  summary: Unknown parameter
+                  value:
+                    error:
+                      code: INVALID_QUERY
+                      message: Invalid search query
+                      details:
+                        - field: categorie
+                          message: categorie is not allowed
+                badFacet:
+                  summary: Unknown facet
+                  value:
+                    error:
+                      code: INVALID_QUERY
+                      message: Invalid search query
+                      details:
+                        - field: facets
+                          message: 'facets must be one or more of: category, type, status'
+                tooManyFacets:
+                  summary: More than 3 facets
+                  value:
+                    error:
+                      code: INVALID_QUERY
+                      message: Invalid search query
+                      details:
+                        - field: facets
+                          message: at most 3 facets can be requested
+                badDateRange:
+                  summary: dateTo before dateFrom
+                  value:
+                    error:
+                      code: INVALID_QUERY
+                      message: Invalid search query
+                      details:
+                        - field: dateTo
+                          message: dateTo must be greater than or equal to dateFrom
+                limitTooHigh:
+                  summary: limit over 50
+                  value:
+                    error:
+                      code: INVALID_QUERY
+                      message: Invalid search query
+                      details:
+                        - field: limit
+                          message: limit must be less than or equal to 50
+                relevanceWithoutText:
+                  summary: Relevance sort without text
+                  value:
+                    error:
+                      code: RELEVANCE_REQUIRES_Q
+                      message: sort=relevance requires a text query (q)
+                      details: []
+                statusForbidden:
+                  summary: A user asks for a hidden declaration
+                  value:
+                    error:
+                      code: STATUS_FORBIDDEN
+                      message: The status hidden cannot be searched with your role
+                      details:
+                        - field: status
+                          message: hidden is not allowed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/search/filters:
+    get:
+      tags: [Search]
+      operationId: getSearchFilters
+      summary: Get the values of the filter lists
+      description: |
+        Everything the interface needs to fill its filter menus, in one call. No parameter.
+
+        - `type`, `categories` and `statuses` are fixed lists. `label` is a French display text, the
+          interface does not need to hard-code any.
+        - `statuses` depends on the role: admins also get `hidden` and `deleted`.
+        - `locations` (at most 100) and `colors` (at most 30) are the **most used values** among the
+          active declarations, not an exhaustive list, because they are free text.
+        - `hasPhoto` holds real booleans as `key`.
+
+        The answer is cached for 5 minutes and refreshed as soon as a declaration is created,
+        edited, has its status changed, or a user deletes their account.
+
+        **Limits.** 120 calls per minute per user (on top of the global limit).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The filter lists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchFiltersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/search/saved:
+    post:
+      tags: [Saved searches]
+      operationId: saveSearch
+      summary: Save a search
+      description: |
+        Stores a set of search criteria for the connected user, to find them again later. Send
+        **at least one criterion**. Unknown fields are rejected, and the owner always comes from the
+        access token.
+
+        - The criteria are the filters of `GET /search/declarations`, except `status`, `sort`, `page`
+          and `limit`, which describe how to display a search and not what to look for.
+        - Here `q` needs at least 2 characters.
+        - `hasPhoto: false` counts as a criterion ("without photo" is a real choice).
+        - A date-only `dateTo` is stored as the end of that day.
+        - `name` is an optional label, 60 characters at most.
+        - A user can keep **20 saved searches**. The 21st is a 409 `SAVED_SEARCH_LIMIT`.
+
+        The criteria are only stored: in the current version no notification is sent when a new
+        declaration matches them.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveSearchRequest'
+            example:
+              name: My black bag
+              q: sac noir
+              type: found
+              category: wallet_bag
+              location: Main library
+      responses:
+        '201':
+          description: Search saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedSearchEnvelope'
+        '400':
+          description: |
+            **400 `VALIDATION_ERROR`**. No criterion, an invalid value, or an unknown field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noCriterion:
+                  summary: Nothing to save
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: ''
+                          message: at least one search criterion is required (q, type, category, location, color, dateFrom, dateTo, hasPhoto)
+                unknownField:
+                  summary: Unknown field (status, owner...)
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid input
+                      details:
+                        - field: status
+                          message: status is not allowed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '409':
+          description: |
+            **409 `SAVED_SEARCH_LIMIT`**. The user already has 20 saved searches. Delete one first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: SAVED_SEARCH_LIMIT
+                  message: You can keep at most 20 saved searches, delete one first
+                  details: []
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [Saved searches]
+      operationId: listSavedSearches
+      summary: List my saved searches
+      description: |
+        The connected user's saved searches, **newest first**. Never more than 20, so there is no
+        pagination. An empty list is a normal 200. Nobody can see another user's saved searches.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The saved searches of the connected user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedSearchListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/search/saved/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SavedSearchId'
+
+    delete:
+      tags: [Saved searches]
+      operationId: deleteSavedSearch
+      summary: Delete one of my saved searches
+      description: |
+        Removes a saved search for good. Only the owner can do it: someone else's saved search gets
+        the **same 404** as one that does not exist.
+
+        All the saved searches of a user are also removed when the user deletes their account.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Saved search deleted. No body.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/SavedSearchNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/search/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SearchDeclarationId'
+
+    get:
+      tags: [Search]
+      operationId: getSearchDeclaration
+      summary: Read one declaration from the search results
+      description: |
+        Opens a declaration found through the search. It always answers with the **public view**:
+        no `privateInfo`, no owner, no `updatedAt`, **for everybody**, owner and admins included.
+        The owner view, with `privateInfo` and the allowed status moves, is
+        `GET /api/v1/declarations/{id}`.
+
+        - For a `student_card_id` declaration, `picture` is `null`.
+        - A `hidden`, `deleted` or soft deleted declaration is a **404** for every user, owner
+          included, and readable by an admin.
+
+        The literal routes `/filters` and `/saved` are matched first, so they are never read as an id.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The declaration, public view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchDeclarationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/SearchDeclarationNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    SearchDeclarationId:
+      name: id
+      in: path
+      required: true
+      description: Declaration id (24 hexadecimal characters). A malformed id is a 400, not a 404.
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+        example: '665f2a7b9b1d8a0012a4c801'
+
+    SavedSearchId:
+      name: id
+      in: path
+      required: true
+      description: Saved search id (24 hexadecimal characters). A malformed id is a 400, not a 404.
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+        example: '665f3c1d9b1d8a0012a4c9a2'
+
+  responses:
+    SearchDeclarationNotFound:
+      description: |
+        **404 `NOT_FOUND`**. The declaration does not exist, or it is `hidden`, `deleted` or soft
+        deleted and the viewer is not an admin. These cases are indistinguishable on purpose.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Declaration not found
+              details: []
+
+    SavedSearchNotFound:
+      description: |
+        **404 `NOT_FOUND`**. The saved search does not exist, or it belongs to another user. The two
+        cases are indistinguishable on purpose.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Saved search not found
+              details: []
+
+  schemas:
+    SearchSort:
+      type: string
+      enum: [date_desc, date_asc, createdAt_desc, createdAt_asc, relevance]
+      default: date_desc
+      description: |
+        `date_*` sorts on the day the item was lost or found, `createdAt_*` on the publication date.
+        `relevance` needs a text query.
+      example: date_desc
+
+    SearchFacetName:
+      type: string
+      enum: [category, type, status]
+      description: A field that can be counted. `location` and `color` are not facets (too many values).
+      example: category
+
+    SearchPagination:
+      type: object
+      required: [page, limit, total, totalPages, hasNext, hasPrev]
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          description: Number of declarations matching the filters, across all pages.
+          example: 42
+        totalPages:
+          type: integer
+          description: '`0` when nothing matches.'
+          example: 3
+        hasNext:
+          type: boolean
+          example: true
+        hasPrev:
+          type: boolean
+          example: false
+
+    SearchAppliedSort:
+      type: object
+      description: The sort that was really applied.
+      required: [field, order]
+      properties:
+        field:
+          type: string
+          enum: [date, createdAt, relevance]
+          example: date
+        order:
+          type: string
+          enum: [asc, desc]
+          example: desc
+
+    SearchAppliedFilters:
+      type: object
+      description: |
+        The filters the server really applied, after defaults and clean-up. Filters that were not
+        used are left out. Use it to show "active filter" chips.
+      properties:
+        q:
+          type: string
+          nullable: true
+          description: '`null` when the text was shorter than 2 characters and so ignored.'
+          example: sac
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        location:
+          type: string
+          example: Main library
+        color:
+          type: string
+          example: black
+        status:
+          type: array
+          description: The statuses searched, the default `pending, matched` when none was asked.
+          items:
+            $ref: '#/components/schemas/DeclarationStatus'
+          example: [pending, matched]
+        dateFrom:
+          type: string
+          format: date-time
+          example: '2026-11-16T00:00:00.000Z'
+        dateTo:
+          type: string
+          format: date-time
+          description: A date-only `dateTo` becomes the end of that day.
+          example: '2026-11-22T23:59:59.999Z'
+        hasPhoto:
+          type: boolean
+
+    SearchFacetValue:
+      type: object
+      required: [key, label, count]
+      properties:
+        key:
+          type: string
+          description: The value to send back as a filter.
+          example: wallet_bag
+        label:
+          type: string
+          description: French display text. Falls back to `key` when there is none.
+          example: Portefeuille / sac
+        count:
+          type: integer
+          description: Matching declarations with this value, across all pages.
+          example: 4
+
+    SearchFacets:
+      type: object
+      description: |
+        One list per requested facet, most frequent first, at most 20 values each. Only the
+        requested facets are present.
+      properties:
+        category:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchFacetValue'
+        type:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchFacetValue'
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchFacetValue'
+
+    SearchDeclarationsResponse:
+      type: object
+      required: [data, pagination, sort, appliedFilters, noResults]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeclarationPublicView'
+        facets:
+          $ref: '#/components/schemas/SearchFacets'
+        pagination:
+          $ref: '#/components/schemas/SearchPagination'
+        sort:
+          $ref: '#/components/schemas/SearchAppliedSort'
+        appliedFilters:
+          $ref: '#/components/schemas/SearchAppliedFilters'
+        noResults:
+          type: boolean
+          description: '`true` only when nothing matches at all (an empty last page stays `false`).'
+          example: false
+
+    SearchDeclarationResponse:
+      type: object
+      required: [declaration]
+      properties:
+        declaration:
+          $ref: '#/components/schemas/DeclarationPublicView'
+
+    SearchFilterOption:
+      type: object
+      required: [key, label]
+      properties:
+        key:
+          type: string
+          example: wallet_bag
+        label:
+          type: string
+          example: Portefeuille / sac
+
+    SearchHasPhotoOption:
+      type: object
+      required: [key, label]
+      properties:
+        key:
+          type: boolean
+          example: true
+        label:
+          type: string
+          example: Avec photo
+
+    SearchFiltersResponse:
+      type: object
+      required: [type, categories, locations, colors, statuses, hasPhoto]
+      properties:
+        type:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchFilterOption'
+          example:
+            - key: lost
+              label: Perdu
+            - key: found
+              label: Trouvé
+        categories:
+          type: array
+          description: The 14 categories.
+          items:
+            $ref: '#/components/schemas/SearchFilterOption'
+        locations:
+          type: array
+          description: The most used places among active declarations (at most 100), sorted by name.
+          items:
+            $ref: '#/components/schemas/SearchFilterOption'
+          example:
+            - key: Amphi B
+              label: Amphi B
+            - key: Main library
+              label: Main library
+        colors:
+          type: array
+          description: The most used colors (at most 30), sorted by name.
+          items:
+            type: string
+          example: [black, white]
+        statuses:
+          type: array
+          description: |
+            `pending`, `matched`, `resolved` and `expired` for a user. Admins also get `hidden` and
+            `deleted`.
+          items:
+            $ref: '#/components/schemas/SearchFilterOption'
+          example:
+            - key: pending
+              label: En attente
+            - key: matched
+              label: Correspondance trouvée
+        hasPhoto:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchHasPhotoOption'
+
+    SavedSearchCriteria:
+      type: object
+      description: The criteria of a saved search. Only the ones that were chosen are present.
+      properties:
+        q:
+          type: string
+          example: sac noir
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        location:
+          type: string
+          example: Main library
+        color:
+          type: string
+          example: black
+        dateFrom:
+          type: string
+          format: date-time
+        dateTo:
+          type: string
+          format: date-time
+        hasPhoto:
+          type: boolean
+
+    SaveSearchRequest:
+      type: object
+      description: At least one criterion is required. Any other field is rejected.
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Optional label to recognise the search in the list.
+          example: My black bag
+        q:
+          type: string
+          minLength: 2
+          maxLength: 200
+          example: sac noir
+        type:
+          $ref: '#/components/schemas/DeclarationType'
+        category:
+          $ref: '#/components/schemas/DeclarationCategory'
+        location:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: Main library
+        color:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: black
+        dateFrom:
+          type: string
+          format: date
+          example: '2026-11-16'
+        dateTo:
+          type: string
+          format: date
+          example: '2026-11-22'
+        hasPhoto:
+          type: boolean
+
+    SavedSearch:
+      type: object
+      required: [id, name, criteria, createdAt]
+      properties:
+        id:
+          type: string
+          example: '665f3c1d9b1d8a0012a4c9a2'
+        name:
+          type: string
+          nullable: true
+          example: My black bag
+        criteria:
+          $ref: '#/components/schemas/SavedSearchCriteria'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-23T10:00:00.000Z'
+
+    SavedSearchEnvelope:
+      type: object
+      required: [savedSearch]
+      properties:
+        savedSearch:
+          $ref: '#/components/schemas/SavedSearch'
+
+    SavedSearchListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedSearch'
