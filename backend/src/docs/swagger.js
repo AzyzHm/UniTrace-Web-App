@@ -3,12 +3,8 @@ import helmet from 'helmet';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
-// The YAML files sit next to this one. The path is absolute, so the docs load whatever folder
-// the process is started from.
 const DOCS_DIR = import.meta.dirname;
 
-// One file per area, plus the shared building blocks. To document a new area (search, admin...),
-// create its YAML file here and add its name to this list.
 const DOC_FILES = [
   'components.yml',
   'health.yml',
@@ -19,8 +15,6 @@ const DOC_FILES = [
   'search.yml',
 ];
 
-// swagger-jsdoc resolves its inputs with glob, which only understands forward slashes. Without
-// this conversion the paths break on Windows.
 const toGlobPath = (file) => path.join(DOCS_DIR, file).split(path.sep).join('/');
 
 const definition = {
@@ -48,8 +42,6 @@ const definition = {
       '- A rate-limited request gets **429** with a `Retry-After` header.',
     ].join('\n'),
   },
-  // Relative on purpose: "Try it out" always calls the host that served this page. The paths in
-  // the YAML files already include /api/v1, because /health lives outside of it.
   servers: [{ url: '/', description: 'Same host as this documentation' }],
   tags: [
     { name: 'Health', description: 'Liveness probe for monitoring.' },
@@ -94,16 +86,11 @@ const definition = {
   ],
 };
 
-// Built once when the module is loaded, so a mistake in a YAML file fails at startup (and in the
-// tests) instead of when somebody opens the page.
 export const swaggerSpec = swaggerJsdoc({
   definition,
   apis: DOC_FILES.map(toGlobPath),
 });
 
-// helmet's default policy adds "upgrade-insecure-requests", which makes Safari load the page
-// assets over https on a plain http localhost, so the page stays blank in development. Only that
-// directive is removed, and only for the docs.
 const docsContentSecurityPolicy = helmet.contentSecurityPolicy({
   directives: {
     ...helmet.contentSecurityPolicy.getDefaultDirectives(),
@@ -112,7 +99,6 @@ const docsContentSecurityPolicy = helmet.contentSecurityPolicy({
 });
 
 export function setupSwagger(app) {
-  // The raw OpenAPI document, for Postman import or client generation.
   app.get('/api-docs.json', (req, res) => {
     res.json(swaggerSpec);
   });
@@ -124,7 +110,6 @@ export function setupSwagger(app) {
     swaggerUi.setup(swaggerSpec, {
       customSiteTitle: 'UniTrace API docs',
       swaggerOptions: {
-        // Keeps the token across a page reload. It only lives 15 minutes anyway.
         persistAuthorization: true,
         displayRequestDuration: true,
       },
