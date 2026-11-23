@@ -1,4 +1,30 @@
+/**
+ * FICHIER : controllers/search/search.controller.js
+ *
+ * RÔLE
+ *   "Serveur de salle" de la recherche : il prend la requête HTTP, la transmet au service, puis
+ *   met la réponse en forme. Il ne contient AUCUNE règle métier (elles sont dans les services).
+ *
+ *   Six actions, une par route :
+ *     searchDeclarations  GET    /search/declarations  recherche combinée
+ *     getFilters          GET    /search/filters       valeurs des listes déroulantes
+ *     saveSearch          POST   /search/saved         sauvegarder une recherche
+ *     listSavedSearches   GET    /search/saved         lister mes recherches sauvegardées
+ *     deleteSavedSearch   DELETE /search/saved/:id     supprimer une recherche sauvegardée
+ *     getDeclaration      GET    /search/:id           lire UNE déclaration
+ *
+ * UTILISÉ PAR
+ *   - routes/index.js (crée le controller) puis routes/search/search.routes.js (l'appelle)
+ *
+ * UTILISE
+ *   - services/search/search.service.js (reçu en paramètre : searchService)
+ *   - services/search/saved-search.service.js (reçu en paramètre : savedSearchService)
+ *   - presenters/declarations/declaration.presenter.js (toPublicDeclarationResponse)
+ *   - presenters/search/saved-search.presenter.js (toSavedSearchResponse)
+ *   - presenters/search/search-facets.presenter.js (toFacetsResponse)
+ */
 import { toPublicDeclarationResponse } from '../../presenters/declarations/declaration.presenter.js';
+import { toFacetsResponse } from '../../presenters/search/search-facets.presenter.js';
 import { toSavedSearchResponse } from '../../presenters/search/saved-search.presenter.js';
 
 export function createSearchController({ searchService, savedSearchService }) {
@@ -16,12 +42,22 @@ export function createSearchController({ searchService, savedSearchService }) {
     async searchDeclarations(req, res) {
       // req.user : défini par requireAuth (id et rôle).
       // req.query : déjà validée et nettoyée (types convertis, valeurs par défaut ajoutées).
-      // Le service rend { items, pagination, sort, appliedFilters, noResults }.
-      const { items, ...rest } = await searchService.searchDeclarations(req.user, req.query);
+      // Le service rend { items, pagination, sort, appliedFilters, noResults } et,
+      // si ?facets=... est demandé, { facets } en plus.
+      const { items, facets, ...rest } = await searchService.searchDeclarations(
+        req.user,
+        req.query,
+      );
 
       // On utilise TOUJOURS le presenter public, quel que soit l'utilisateur : une recherche ne
       // renvoie jamais privateInfo ni owner, même pour le propriétaire ou un admin.
-      res.status(200).json({ data: items.map(toPublicDeclarationResponse), ...rest });
+      // Les facettes (si présentes) passent par leur propre presenter : libellés français,
+      // tri par count décroissant, limite MAX_FACET_VALUES.
+      res.status(200).json({
+        data: items.map(toPublicDeclarationResponse),
+        ...(facets && { facets: toFacetsResponse(facets) }),
+        ...rest,
+      });
     },
 
     // GET /search/filters : le service sait déjà quels statuts montrer selon le rôle.
