@@ -84,6 +84,10 @@ components:
                 - CONFLICT
                 - FILE_TOO_LARGE
                 - RATE_LIMITED
+                - INVALID_QUERY
+                - RELEVANCE_REQUIRES_Q
+                - STATUS_FORBIDDEN
+                - SAVED_SEARCH_LIMIT
                 - INTERNAL_ERROR
               example: VALIDATION_ERROR
             message:
