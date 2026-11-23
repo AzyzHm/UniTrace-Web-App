@@ -18,7 +18,7 @@ describe('search-facets presenter', () => {
   it('ajoute le libellé français pour une catégorie', () => {
     const raw = { category: [{ _id: 'wallet_bag', count: 12 }] };
     const result = toFacetsResponse(raw);
-    
+
     expect(result.category[0]).toEqual({
       key: 'wallet_bag',
       label: 'Portefeuille / sac',
@@ -26,10 +26,10 @@ describe('search-facets presenter', () => {
     });
   });
 
-  it('garde la clé brute si aucun libellé n\'est trouvé', () => {
+  it("garde la clé brute si aucun libellé n'est trouvé", () => {
     const raw = { category: [{ _id: 'unknown_category', count: 1 }] };
     const result = toFacetsResponse(raw);
-    
+
     expect(result.category[0].label).toBe('unknown_category');
   });
 
@@ -42,7 +42,7 @@ describe('search-facets presenter', () => {
       })),
     };
     const result = toFacetsResponse(raw);
-    
+
     // Doit être limité à 20
     expect(result.category).toHaveLength(20);
   });
@@ -51,7 +51,7 @@ describe('search-facets presenter', () => {
     expect(toFacetsResponse({})).toEqual({});
   });
 
-  it('ne modifie pas l\'ordre (tri déjà fait par MongoDB)', () => {
+  it("ne modifie pas l'ordre (tri déjà fait par MongoDB)", () => {
     const raw = {
       type: [
         { _id: 'lost', count: 18 },
@@ -59,7 +59,7 @@ describe('search-facets presenter', () => {
       ],
     };
     const result = toFacetsResponse(raw);
-    
+
     expect(result.type.map((f) => f.key)).toEqual(['lost', 'found']);
   });
 });

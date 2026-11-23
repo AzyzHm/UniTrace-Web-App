@@ -209,7 +209,7 @@ export function createSearchService({
 
       const skip = (page - 1) * limit;
       let items = [];
-      
+
       if (skip < total) {
         const { field, order } = SORT_DESCRIPTIONS[sort];
         items = await searchRepository.findPage(filter, {

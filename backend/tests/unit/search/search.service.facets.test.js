@@ -55,7 +55,7 @@ describe('search service - facets', () => {
     expect(result.facets).toBeDefined();
   });
 
-  it('utilise count + findPage quand facets n\'est pas demandé', async () => {
+  it("utilise count + findPage quand facets n'est pas demandé", async () => {
     const { service, searchRepository } = setup();
 
     const result = await service.searchDeclarations(fakeUser, {

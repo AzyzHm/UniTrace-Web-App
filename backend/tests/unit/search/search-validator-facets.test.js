@@ -28,7 +28,9 @@ describe('search query validator - facets', () => {
   });
 
   it('accepte les facettes répétées (dédoublonnage)', () => {
-    const { error, value } = searchQuerySchema.validate({ facets: ['category', 'category', 'type'] });
+    const { error, value } = searchQuerySchema.validate({
+      facets: ['category', 'category', 'type'],
+    });
     expect(error).toBeUndefined();
     expect(value.facets).toEqual(['category', 'type']);
   });

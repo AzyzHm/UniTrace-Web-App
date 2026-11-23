@@ -84,10 +84,7 @@ export function createSearchRepository({ model = Declaration } = {}) {
         ];
       }
 
-      const [result] = await model.aggregate([
-        { $match: filter },
-        { $facet: facetPipeline },
-      ]);
+      const [result] = await model.aggregate([{ $match: filter }, { $facet: facetPipeline }]);
 
       // Post-traitement : on retire les champs sensibles que $facet n'a pas exclus.
       const items = (result?.data ?? []).map((doc) => {
@@ -102,9 +99,7 @@ export function createSearchRepository({ model = Declaration } = {}) {
       return {
         total: result?.metadata?.[0]?.total ?? 0,
         items,
-        facets: Object.fromEntries(
-          facets.map((name) => [name, result?.[name] ?? []]),
-        ),
+        facets: Object.fromEntries(facets.map((name) => [name, result?.[name] ?? []])),
       };
     },
 
