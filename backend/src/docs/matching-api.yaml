@@ -1,0 +1,785 @@
+paths:
+  /api/v1/correspondences/me:
+    get:
+      tags: [Matching]
+      summary: List my correspondences
+      description: |
+        Every correspondence where I own the lost or the found declaration, newest first.
+        Filter by `status` to see only the ones that still need attention.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CorrespondenceStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: One page of correspondences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/correspondences/declaration/{declarationId}:
+    parameters:
+      - $ref: '#/components/parameters/CorrespondenceDeclarationId'
+    get:
+      tags: [Matching]
+      summary: List the correspondences of one declaration
+      description: |
+        Owner of the declaration or admin only. For anybody else the declaration is reported as
+        not found, so its existence is not revealed.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All the correspondences of the declaration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceItemsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/CorrespondenceDeclarationNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/correspondences/declaration/{declarationId}/rematch:
+    parameters:
+      - $ref: '#/components/parameters/CorrespondenceDeclarationId'
+    post:
+      tags: [Matching]
+      summary: Run the matching again for a declaration
+      description: |
+        Owner of the declaration or admin only. Useful after a late edit. A refused correspondence
+        is reopened only if its score rose by at least 0.10.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Matching done.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created]
+                properties:
+                  created:
+                    type: integer
+                    description: Number of correspondences created or reopened.
+                    example: 3
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotYourDeclaration'
+        '404':
+          $ref: '#/components/responses/CorrespondenceDeclarationNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/correspondences/{id}:
+    parameters:
+      - $ref: '#/components/parameters/CorrespondenceId'
+    get:
+      tags: [Matching]
+      summary: Get a correspondence with its history
+      description: |
+        Only the two owners (and admins) can read it. Anybody else gets 404, so the existence of
+        a correspondence is not revealed. `contact` is filled only when the status is `accepted`
+        or `resolved`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The correspondence, including its event history.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [correspondence]
+                properties:
+                  correspondence:
+                    $ref: '#/components/schemas/Correspondence'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/CorrespondenceNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/correspondences/{id}/accept:
+    parameters:
+      - $ref: '#/components/parameters/CorrespondenceId'
+    post:
+      tags: [Matching]
+      summary: Accept a correspondence
+      description: |
+        The status stays `proposed` after the first acceptance and becomes `accepted` once both
+        owners accepted. A declaration can have only one accepted correspondence at a time.
+        The other owner is notified.
+      security:
+        - bearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/ReactionRequest'
+      responses:
+        '200':
+          description: Reaction saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceStatusResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/CorrespondenceNotFound'
+        '409':
+          $ref: '#/components/responses/CorrespondenceConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/correspondences/{id}/refuse:
+    parameters:
+      - $ref: '#/components/parameters/CorrespondenceId'
+    post:
+      tags: [Matching]
+      summary: Refuse a correspondence
+      description: |
+        The status becomes `refused`. A refused correspondence reopens only if a new matching run
+        raises its score by at least 0.10.
+      security:
+        - bearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/ReactionRequest'
+      responses:
+        '200':
+          description: Reaction saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceStatusResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/CorrespondenceNotFound'
+        '409':
+          $ref: '#/components/responses/CorrespondenceConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/correspondences/{id}/verify:
+    parameters:
+      - $ref: '#/components/parameters/CorrespondenceId'
+    post:
+      tags: [Matching]
+      summary: Ask for more verification
+      description: |
+        The status becomes `to_verify`, unless the other owner already refused. Use `comment` to
+        say what you need to check.
+      security:
+        - bearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/ReactionRequest'
+      responses:
+        '200':
+          description: Reaction saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceStatusResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/CorrespondenceNotFound'
+        '409':
+          $ref: '#/components/responses/CorrespondenceConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/correspondences/{id}/recover:
+    parameters:
+      - $ref: '#/components/parameters/CorrespondenceId'
+    post:
+      tags: [Matching]
+      summary: Confirm the handover (my side)
+      description: |
+        Requires the status `accepted`. Each owner confirms for their own declaration, which
+        becomes `resolved`. When both owners confirmed, the correspondence is `resolved` and the
+        other open correspondences of both declarations are closed.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Handover confirmed on my side.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrespondenceStatusResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/CorrespondenceNotFound'
+        '409':
+          $ref: '#/components/responses/CorrespondenceConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: List my notifications
+      description: Newest first. `unread` is the total number of unread notifications, whatever the filter.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: One page of notifications.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all my notifications as read
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Done. No content.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/notifications/{id}/read:
+    parameters:
+      - $ref: '#/components/parameters/NotificationId'
+    patch:
+      tags: [Notifications]
+      summary: Mark one notification as read
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The updated notification.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notification]
+                properties:
+                  notification:
+                    $ref: '#/components/schemas/Notification'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AccountSuspended'
+        '404':
+          $ref: '#/components/responses/NotificationNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrespondenceId:
+      name: id
+      in: path
+      required: true
+      description: Correspondence id (24 hexadecimal characters). A malformed id is a 400, not a 404.
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+        example: '665f3b8c9b1d8a0012a4c9a1'
+    CorrespondenceDeclarationId:
+      name: declarationId
+      in: path
+      required: true
+      description: Declaration id (24 hexadecimal characters).
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+        example: '665f2a7b9b1d8a0012a4c801'
+    NotificationId:
+      name: id
+      in: path
+      required: true
+      description: Notification id (24 hexadecimal characters).
+      schema:
+        type: string
+        pattern: '^[0-9a-fA-F]{24}$'
+        example: '665f4c9d9b1d8a0012a4cb10'
+
+  requestBodies:
+    ReactionRequest:
+      required: false
+      description: The body is optional. Any field other than `comment` is rejected.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              comment:
+                type: string
+                maxLength: 500
+                description: Optional message kept in the history. Trimmed.
+                example: Is there a sticker on the back of the case?
+
+  responses:
+    CorrespondenceNotFound:
+      description: |
+        **404 `NOT_FOUND`**. The correspondence does not exist, or the caller is neither one of the
+        two owners nor an admin. These cases are deliberately indistinguishable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Correspondence not found
+              details: []
+
+    CorrespondenceDeclarationNotFound:
+      description: |
+        **404 `NOT_FOUND`**. The declaration does not exist. On the list route, it is also returned
+        when the caller does not own the declaration and is not an admin.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Declaration not found
+              details: []
+
+    NotificationNotFound:
+      description: |
+        **404 `NOT_FOUND`**. The notification does not exist or belongs to another user. These
+        cases are deliberately indistinguishable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Notification not found
+              details: []
+
+    NotYourDeclaration:
+      description: |
+        **403 `FORBIDDEN`**. The declaration exists but belongs to someone else (only its owner or
+        an admin can rematch it), or the account is suspended.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: FORBIDDEN
+              message: You are not allowed to do this
+              details: []
+
+    CorrespondenceConflict:
+      description: |
+        **409 `CONFLICT`**. The action is not possible in the current state: the correspondence is
+        `resolved`, `closed` or `refused`, the declaration already has another accepted
+        correspondence, both owners must accept before the handover, or the handover was already
+        confirmed by this owner.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: CONFLICT
+              message: This correspondence was refused
+              details: []
+
+  schemas:
+    CorrespondenceStatus:
+      type: string
+      description: |
+        - `proposed`: waiting for both owners (one of them may already have accepted).
+        - `to_verify`: an owner asked for more verification.
+        - `accepted`: both owners accepted, contact details are shared.
+        - `refused`: an owner refused.
+        - `resolved`: both owners confirmed the handover.
+        - `closed`: closed by the system (the object was recovered with another correspondence,
+          or a declaration was hidden or deleted).
+      enum: [proposed, to_verify, accepted, refused, resolved, closed]
+      example: proposed
+
+    Confidence:
+      type: string
+      description: Derived from `globalScore`. `high` from 0.75, `medium` from 0.60, otherwise `low`.
+      enum: [high, medium, low]
+      example: high
+
+    Decision:
+      type: string
+      enum: [accept, refuse, verify]
+      example: accept
+
+    Scores:
+      type: object
+      description: |
+        Each score is between 0 and 1. `null` means the signal was missing (no picture, for
+        example) and was skipped, the other weights are renormalized.
+      properties:
+        description:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.82
+        location:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+          example: 0.9
+        date:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 1
+        image:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+          example: 0.78
+        attributes:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+          example: null
+
+    ReactionState:
+      type: object
+      description: |
+        What one owner did on a correspondence. Absent when the caller is an admin who owns neither
+        declaration.
+      properties:
+        decision:
+          allOf:
+            - $ref: '#/components/schemas/Decision'
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+          example: Is there a sticker on the back of the case?
+        at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-11-20T10:05:00.000Z'
+        recoveredAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When this owner confirmed the handover.
+          example: null
+
+    Contact:
+      type: object
+      nullable: true
+      description: |
+        Identity of the other owner. `null` until the status is `accepted` or `resolved`, so
+        contact details are never shown before both owners agreed.
+      properties:
+        username:
+          type: string
+          example: sara.k
+        email:
+          type: string
+          format: email
+          example: sara.k@isamm.uma.tn
+        phone:
+          type: string
+          nullable: true
+          example: '+21655000001'
+
+    HistoryEntry:
+      type: object
+      description: One event of the correspondence, oldest first. Answers "what happened?".
+      required: [type, at]
+      properties:
+        type:
+          type: string
+          enum:
+            - created
+            - proposal_sent
+            - score_updated
+            - accepted_by_one
+            - accepted
+            - refused
+            - verification_requested
+            - feedback
+            - reopened
+            - status_changed
+            - recovered
+            - closed
+          example: accepted_by_one
+        data:
+          type: object
+          additionalProperties: true
+          description: Details of the event. The content depends on `type`.
+        at:
+          type: string
+          format: date-time
+          example: '2026-11-20T10:05:00.000Z'
+
+    Correspondence:
+      type: object
+      description: |
+        A possible match between one lost and one found declaration. Owner ids and the internal
+        similarity data never leave the server.
+      required: [id, status, confidence, globalScore, scores, explanation, lost, found]
+      properties:
+        id:
+          type: string
+          example: '665f3b8c9b1d8a0012a4c9a1'
+        status:
+          $ref: '#/components/schemas/CorrespondenceStatus'
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        globalScore:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.84
+        scores:
+          $ref: '#/components/schemas/Scores'
+        explanation:
+          type: string
+          description: Human-readable reason of the match.
+          example: Description 82%, location 90%, date 100%, picture 78%
+        mySide:
+          type: string
+          enum: [lost, found]
+          nullable: true
+          description: Which declaration is mine. `null` for an admin who owns neither.
+          example: lost
+        myReaction:
+          $ref: '#/components/schemas/ReactionState'
+        lost:
+          $ref: '#/components/schemas/DeclarationPublicView'
+        found:
+          $ref: '#/components/schemas/DeclarationPublicView'
+        contact:
+          $ref: '#/components/schemas/Contact'
+        history:
+          type: array
+          description: Only returned by `GET /api/v1/correspondences/{id}`.
+          items:
+            $ref: '#/components/schemas/HistoryEntry'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-20T09:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-11-20T10:05:00.000Z'
+
+    CorrespondenceStatusResponse:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          example: '665f3b8c9b1d8a0012a4c9a1'
+        status:
+          $ref: '#/components/schemas/CorrespondenceStatus'
+
+    CorrespondenceItemsResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Correspondence'
+
+    CorrespondenceListResponse:
+      type: object
+      required: [items, page, limit, total, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Correspondence'
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          description: Number of correspondences matching the filter, across all pages.
+          example: 4
+        totalPages:
+          type: integer
+          example: 1
+
+    Notification:
+      type: object
+      required: [id, type, message, correspondenceId, read, createdAt]
+      properties:
+        id:
+          type: string
+          example: '665f4c9d9b1d8a0012a4cb10'
+        type:
+          type: string
+          enum:
+            - new_correspondence
+            - correspondence_accepted
+            - correspondence_refused
+            - verification_requested
+            - object_recovered
+            - correspondence_closed
+          example: new_correspondence
+        message:
+          type: string
+          example: A possible match was found for your declaration
+        correspondenceId:
+          type: string
+          nullable: true
+          example: '665f3b8c9b1d8a0012a4c9a1'
+        read:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-20T09:00:00.000Z'
+
+    NotificationListResponse:
+      type: object
+      required: [items, page, limit, total, unread]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 7
+        unread:
+          type: integer
+          description: Number of unread notifications of the user, whatever the filter.
+          example: 3
