@@ -27,6 +27,8 @@ describe('API documentation', () => {
         '/api/v1/users/me',
         '/api/v1/declarations',
         '/api/v1/declarations/{id}/status',
+        '/api/v1/search/declarations',
+        '/api/v1/search/saved/{id}',
         '/api/v1/correspondences/{id}/accept',
         '/api/v1/notifications/read-all',
       ]),
