@@ -16,6 +16,7 @@ const DOC_FILES = [
   'users.yml',
   'declarations.yml',
   'matching-api.yml',
+  'search.yml',
 ];
 
 // swagger-jsdoc resolves its inputs with glob, which only understands forward slashes. Without
@@ -30,8 +31,8 @@ const definition = {
     description: [
       'REST API of **UniTrace**, the lost and found platform of a university campus.',
       '',
-      'This page documents the **health check, authentication, users, declarations, matching and',
-      'notifications**. Search and administration are not documented here yet.',
+      'This page documents the **health check, authentication, users, declarations, matching,',
+      'notifications and search**. Administration is not documented here yet.',
       '',
       '### Try it',
       '1. Open `POST /api/v1/auth/login`, click **Try it out** and send a seeded account',
@@ -79,6 +80,16 @@ const definition = {
     {
       name: 'Notifications',
       description: 'The in-app notifications of the connected user: list and mark as read.',
+    },
+    {
+      name: 'Search',
+      description:
+        'Combined search over declarations (filters, text, sort, pagination, facets), the values of the filter lists, and reading one declaration in its public view.',
+    },
+    {
+      name: 'Saved searches',
+      description:
+        'Search criteria a user keeps to find again later: save, list and delete. At most 20 per user.',
     },
   ],
 };
